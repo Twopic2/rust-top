@@ -1,4 +1,6 @@
 mod app;
+mod info;
+
 use app::App;
 use std::io;
 
