@@ -1,4 +1,4 @@
-use std::{collections::HashMap, thread, time::Duration};
+use std::{collections::HashMap};
 
 use sysinfo::{System, RefreshKind};
 
@@ -15,6 +15,10 @@ impl SystemInfo {
         Self { sys }
     }
 
+    pub fn num_cores(&self) -> usize {
+        self.sys.cpus().len()
+    }
+
     pub fn display_cores(&mut self) -> Option<Vec<String>> {
         if self.sys.cpus().is_empty() {
             return None;
@@ -22,36 +26,51 @@ impl SystemInfo {
 
         let mut cores = Vec::new();
 
-        cores.push(format!("Global CPU: {:.1}%", self.sys.global_cpu_usage()));
         cores.push(String::new());
 
         for (i, cpu) in self.sys.cpus().iter().enumerate() {
             cores.push(format!(
-                "Core {}: {:.1}% @ {} MHz",
+                "Core {}: {:.1}%",
                 i,
                 cpu.cpu_usage(),
-                cpu.frequency()
             ));
         }
 
         Some(cores)
     }
 
-    pub fn display_cpu_model(&self) -> Option<HashMap<String, String>> {
+    pub fn display_cpu_frequency(&mut self) -> Option<Vec<String>> {
+        if self.sys.cpus().is_empty() {
+            return None;
+        }
+
+        let mut cpu_frequency = Vec::new();
+        cpu_frequency.push(String::new());
+
+        for cpu in self.sys.cpus() {
+            if cpu.frequency().to_string().is_empty() {
+                return None;
+            }
+
+            cpu_frequency.push(cpu.frequency().to_string());
+        }
+
+        Some(cpu_frequency)
+    }
+
+    pub fn display_cpu_model(&self) -> Option<HashMap<&str, String>> {
         if self.sys.cpus().is_empty() {
             return None;
         }
         let mut info = HashMap::new();
 
         if let Some(cpu) = self.sys.cpus().first() {
-            info.insert("CPU Name".to_string(), cpu.name().to_string());
-            info.insert("Brand".to_string(), cpu.brand().to_string());
-            info.insert("Vendor ID".to_string(), cpu.vendor_id().to_string());
+            info.insert("Brand", cpu.brand().to_string());
         }
 
         Some(info)
     }
-
+ 
     pub fn display_memory(&self) -> Vec<String> {
         let mut info = Vec::new();
 
@@ -67,5 +86,26 @@ impl SystemInfo {
         info
     }
 
-    /* pub fn set_refresh_timer(&mut self) {} */
+    pub fn set_refresh_timer(&mut self) {
+        self.sys.refresh_cpu_usage();
+        self.sys.refresh_cpu_frequency();
+        self.sys.refresh_memory();
+    }
+
+    pub fn get_core_usages(&self) -> Vec<f64> {
+        self.sys.cpus().iter().map(|cpu| cpu.cpu_usage() as f64).collect()
+    } 
 }
+
+/* 
+Make sure to add Networking and DiskInfo
+
+pub struct NetworkInfo {
+    sys: System,
+};
+
+impl NetworkInfo {
+    pub fn new() -> Self {
+
+    }
+} */

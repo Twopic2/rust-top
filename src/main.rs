@@ -1,5 +1,7 @@
 mod app;
 mod info;
+mod graph;
+mod bar;
 
 use app::App;
 use std::io;
