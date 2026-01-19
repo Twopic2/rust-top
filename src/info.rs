@@ -1,6 +1,9 @@
 use std::{collections::HashMap};
+use cache_size::{l1_cache_size, l2_cache_size, l3_cache_size};
+use sysinfo::{System, RefreshKind, Disks, Networks, NetworkData};
 
-use sysinfo::{System, RefreshKind};
+const KILOBYTE: usize = 1024;
+const MEGABYTE: usize = 10000;
 
 pub struct SystemInfo {
     sys: System,
@@ -58,6 +61,28 @@ impl SystemInfo {
         Some(cpu_frequency)
     }
 
+    pub fn display_cpu_cache(&self) -> Option<HashMap<&str, String>> {
+        let mut cache_info = HashMap::new();
+
+        if let Some(size) = l1_cache_size() {
+            cache_info.insert("L1", format!("{} KB", size / KILOBYTE));
+        }
+
+        if let Some(size) = l2_cache_size() {
+            cache_info.insert("L2", format!("{} KB", size / KILOBYTE));
+        }
+
+        if let Some(size) = l3_cache_size() {
+            cache_info.insert("L3", format!("{} MB", size / MEGABYTE));
+        }
+
+        if cache_info.is_empty() {
+            None
+        } else {
+            Some(cache_info)
+        }
+    }
+
     pub fn display_cpu_model(&self) -> Option<HashMap<&str, String>> {
         if self.sys.cpus().is_empty() {
             return None;
@@ -97,9 +122,49 @@ impl SystemInfo {
     } 
 }
 
-/* 
-Make sure to add Networking and DiskInfo
+pub trait OsInfo {
+    fn display_kernel(&self) -> Vec<String>;
+    fn display_host_name(&self) -> Vec<String>;
+}
 
+impl OsInfo for SystemInfo {
+    fn display_kernel(&self) -> Vec<String> {
+        let mut v = Vec::new();
+        v.push(String::new());
+
+        let kernel = System::kernel_version();
+
+        v.push(format!("{}", kernel.unwrap_or_else(|| String::from("No Kernel data available"))));
+        v
+    }
+
+    fn display_host_name(&self) -> Vec<String> {
+        let mut v = Vec::new();
+        v.push(String::new());
+
+        let os = System::host_name();
+
+        v.push(format!("{}", os.unwrap_or_else(|| String::from("No Os data available"))));
+        v
+    }
+}
+
+/* pub trait DiskInfo {
+    disk: Disks,
+}
+
+impl DiskInfo {
+    pub fn new() -> Self {
+       
+    }
+
+    pub fn set_disk_refresh_timer(&mut self) {
+       
+    }    
+
+} */
+
+/* 
 pub struct NetworkInfo {
     sys: System,
 };

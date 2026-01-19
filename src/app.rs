@@ -10,7 +10,7 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::info::SystemInfo;
+use crate::info::{OsInfo, SystemInfo};
 use crate::graph::{MultiCoreGraph, ColorScheme};
 use crate::bar::{TotalCoreBar, BarColorScheme};
 
@@ -18,6 +18,7 @@ pub struct App {
     should_quit: bool,
     sys_info: SystemInfo,
     cpu_model_lines: Vec<Line<'static>>,
+    cpu_cache_lines: Vec<Line<'static>>,
     core_graph: MultiCoreGraph,
     total_cpu_bar: TotalCoreBar,
 }
@@ -36,6 +37,16 @@ impl App {
             Vec::new()
         };
 
+        let cpu_cache_lines = if let Some(cpu_cache) = sys_info.display_cpu_cache() {
+            let cache_str = cpu_cache.into_iter()
+                .map(|(key, value)| format!("{}: {}", key, value))
+                .collect::<Vec<_>>()
+                .join(" | ");
+            vec![Line::from(cache_str)]
+        } else {
+            vec![Line::from("Cache info not available")]
+        };
+
         let num_cores = sys_info.num_cores();
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
         let total_cpu_bar = TotalCoreBar::new(BarColorScheme::Green);
@@ -44,6 +55,7 @@ impl App {
             should_quit: false,
             sys_info,
             cpu_model_lines,
+            cpu_cache_lines,
             core_graph,
             total_cpu_bar,
         }
@@ -98,9 +110,15 @@ impl App {
             " Quit ".red().bold().into(),
             "<Q/Esc> ".red().bold(),
         ]);
+
+        let kernel_output = self.sys_info.display_kernel().join(" ");
+        let hostname_output = self.sys_info.display_host_name().join(" ");
+
         let outer_block = Block::bordered()
             .title(title.centered())
+            .title(Line::from(hostname_output).left_aligned())
             .title_bottom(instructions.centered())
+            .title(Line::from(kernel_output).right_aligned())
             .border_set(border::THICK);
 
         let inner_area = outer_block.inner(frame.area());
@@ -159,8 +177,28 @@ impl App {
             cpu_model_area
         );
 
-        self.core_graph.render(frame, left_layout[1]);
+        let cpu_cache_content_width = self.cpu_cache_lines.iter()
+            .map(|line| line.to_string().len())
+            .max()
+            .unwrap_or(20) + 4;
 
+        let cpu_cache_area = ratatui::layout::Rect {
+            x: cpu_model_area.x + cpu_model_area.width,
+            y: left_layout[0].y,
+            width: cpu_cache_content_width.min((left_layout[0].width - cpu_model_area.width) as usize) as u16,
+            height: left_layout[0].height,
+        };
+
+        frame.render_widget(
+            Paragraph::new(self.cpu_cache_lines.clone())
+                .block(Block::new()
+                    .borders(Borders::ALL)
+                    .title("CPU Cache")
+                    .title_style(Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD))),
+            cpu_cache_area
+        );
+
+        self.core_graph.render(frame, left_layout[1]);
         self.total_cpu_bar.render(frame, left_layout[2]);
 
         frame.render_widget(
