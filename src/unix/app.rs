@@ -10,9 +10,9 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
-use crate::info::{OsInfo, SystemInfo};
-use crate::graph::{MultiCoreGraph, ColorScheme};
-use crate::bar::{TotalCoreBar, BarColorScheme};
+use crate::unix::info::{OsInfo, SystemInfo};
+use crate::draw::graph::{MultiCoreGraph, ColorScheme};
+use crate::draw::bar::{TotalCoreBar, BarColorScheme};
 
 pub struct App {
     should_quit: bool,

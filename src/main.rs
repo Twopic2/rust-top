@@ -1,9 +1,7 @@
-mod app;
-mod info;
-mod graph;
-mod bar;
+mod unix;
+mod draw;
 
-use app::App;
+use unix::app::App;
 use std::io;
 
 fn main() -> io::Result<()> {
