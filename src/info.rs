@@ -150,27 +150,16 @@ impl OsInfo for SystemInfo {
 }
 
 /* pub trait DiskInfo {
-    disk: Disks,
 }
 
-impl DiskInfo {
-    pub fn new() -> Self {
-       
-    }
-
-    pub fn set_disk_refresh_timer(&mut self) {
-       
-    }    
+impl DiskInfo for SystemInfo {
 
 } */
 
 /* 
-pub struct NetworkInfo {
-    sys: System,
+pub trait NetworkInfo {
 };
 
-impl NetworkInfo {
-    pub fn new() -> Self {
-
-    }
+impl NetworkInfo for SystemInfo {
+    
 } */
