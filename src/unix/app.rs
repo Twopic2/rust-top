@@ -10,17 +10,23 @@ use ratatui::{
     widgets::{Block, Borders, Paragraph},
 };
 
+#[cfg(target_os = "macos")]
+use crate::unix::darwin::cache::CacheMac;
+
 use crate::unix::info::{OsInfo, SystemInfo};
 use crate::draw::graph::{MultiCoreGraph, ColorScheme};
 use crate::draw::bar::{TotalCoreBar, BarColorScheme};
+use crate::draw::histogram::NetworkHistogram;
 
 pub struct App {
     should_quit: bool,
     sys_info: SystemInfo,
     cpu_model_lines: Vec<Line<'static>>,
     cpu_cache_lines: Vec<Line<'static>>,
+    mem_lines: Vec<Line<'static>>,
     core_graph: MultiCoreGraph,
     total_cpu_bar: TotalCoreBar,
+    network_histogram: NetworkHistogram,
 }
 
 impl App {    
@@ -37,6 +43,30 @@ impl App {
             Vec::new()
         };
 
+        #[cfg(target_os = "macos")]
+        let cache_levels = CacheMac::cache_levels();          
+
+        #[cfg(target_os = "macos")]
+        let cpu_cache_lines: Vec<Line<'static>> = if !cache_levels.is_empty() {
+            let p_cores: Vec<_> = cache_levels.iter().filter(|s| s.starts_with("P-")).cloned().collect();
+            let e_cores: Vec<_> = cache_levels.iter().filter(|s| s.starts_with("E-")).cloned().collect();
+            let mut lines = Vec::new();
+            if !p_cores.is_empty() {
+                lines.push(Line::from(p_cores.join(" | ")));
+            }
+            if !e_cores.is_empty() {
+                lines.push(Line::from(e_cores.join(" | ")));
+            }
+            if lines.is_empty() {
+                vec![Line::from(cache_levels.join(" | "))]
+            } else {
+                lines
+            }
+        } else {
+            vec![Line::from("Apple Cache not here")]
+        };
+
+        #[cfg(not(target_os = "macos"))]
         let cpu_cache_lines = if let Some(cpu_cache) = sys_info.display_cpu_cache() {
             let cache_str = cpu_cache.into_iter()
                 .map(|(key, value)| format!("{}: {}", key, value))
@@ -47,17 +77,22 @@ impl App {
             vec![Line::from("Cache info not available")]
         };
 
+        let mem_lines: Vec<Line<'static>> = Vec::new();
+
         let num_cores = sys_info.num_cores();
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
         let total_cpu_bar = TotalCoreBar::new(BarColorScheme::Green);
+        let network_histogram = NetworkHistogram::new(60);
 
         Self {
             should_quit: false,
             sys_info,
             cpu_model_lines,
             cpu_cache_lines,
+            mem_lines,
             core_graph,
             total_cpu_bar,
+            network_histogram,
         }
     }
 
@@ -78,6 +113,8 @@ impl App {
                     self.core_graph.set_cpu_frequency(freq);
                 }
             }
+
+            self.network_histogram.update();
 
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_keystrokes()?;
@@ -137,11 +174,13 @@ impl App {
         let num_rows = (num_cores + cores_per_row - 1) / cores_per_row;
         let cpu_cores_height = (num_rows + 2).max(5) as u16;
 
+        let cpu_info_height = (self.cpu_model_lines.len().max(self.cpu_cache_lines.len()).max(2) + 2) as u16;
+
         let left_layout = Layout::vertical([
-            Constraint::Length(3),
+            Constraint::Length(cpu_info_height),
             Constraint::Length(cpu_cores_height),
             Constraint::Length(3),
-            Constraint::Min(0),
+            Constraint::Min(10),
         ]).split(layout[0]);
 
         let mut cpu_lines: Vec<Line> = Vec::new();
@@ -177,11 +216,27 @@ impl App {
             cpu_model_area
         );
 
+        #[cfg(target_os = "macos")]
         let cpu_cache_content_width = self.cpu_cache_lines.iter()
             .map(|line| line.to_string().len())
             .max()
             .unwrap_or(20) + 4;
 
+        #[cfg(target_os = "macos")]
+        let cpu_cache_area = ratatui::layout::Rect {
+            x: cpu_model_area.x + cpu_model_area.width,
+            y: left_layout[0].y,
+            width: cpu_cache_content_width.min((left_layout[0].width - cpu_model_area.width) as usize) as u16,
+            height: left_layout[0].height,
+        }; 
+
+        #[cfg(not(target_os = "macos"))]
+        let cpu_cache_content_width = self.cpu_cache_lines.iter()
+            .map(|line| line.to_string().len())
+            .max()
+            .unwrap_or(20) + 4;
+
+        #[cfg(not(target_os = "macos"))]
         let cpu_cache_area = ratatui::layout::Rect {
             x: cpu_model_area.x + cpu_model_area.width,
             y: left_layout[0].y,
@@ -198,8 +253,27 @@ impl App {
             cpu_cache_area
         );
 
+        let remaining_width = left_layout[0].width.saturating_sub(cpu_model_area.width + cpu_cache_area.width);
+
+        let mem_area = ratatui::layout::Rect {
+            x: cpu_cache_area.x + cpu_cache_area.width,
+            y: left_layout[0].y,
+            width: remaining_width,
+            height: left_layout[0].height,
+        };
+
+        frame.render_widget(
+            Paragraph::new(memory_lines.clone())
+                .block(Block::new()
+                    .borders(Borders::ALL)
+                    .title("Memory")
+                    .title_style(Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD))),
+            mem_area
+        );
+
         self.core_graph.render(frame, left_layout[1]);
         self.total_cpu_bar.render(frame, left_layout[2]);
+        self.network_histogram.render(frame, left_layout[3]);
 
         frame.render_widget(
             Paragraph::new(memory_lines)

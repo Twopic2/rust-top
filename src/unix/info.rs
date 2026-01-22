@@ -1,9 +1,12 @@
 use std::{collections::HashMap};
 use cache_size::{l1_cache_size, l2_cache_size, l3_cache_size};
-use sysinfo::{System, RefreshKind, Disks, Networks, NetworkData};
+use sysinfo::{System, RefreshKind, Disks};
 
 const KILOBYTE: usize = 1024;
+// ToDo: Make sure to fix MEGABYTE to match the proper value 
 const MEGABYTE: usize = 10000;
+const GIGABYTE: f64 = 1024.0 * 1024.0 * 1024.0;
+
 
 pub struct SystemInfo {
     sys: System,
@@ -99,15 +102,17 @@ impl SystemInfo {
     pub fn display_memory(&self) -> Vec<String> {
         let mut info = Vec::new();
 
-        let total = self.sys.total_memory() as f64 / 1_073_741_824.0; 
-        let used = self.sys.used_memory() as f64 / 1_073_741_824.0;
-        let available = self.sys.available_memory() as f64 / 1_073_741_824.0;
+        let total= self.sys.total_memory() as f64 / GIGABYTE; 
+        let used = self.sys.used_memory() as f64 / GIGABYTE;
         let usage_percent = (used / total) * 100.0;
 
-        info.push(format!("Total: {:.2} GB", total));
-        info.push(format!("Used: {:.2} GB ({:.1}%)", used, usage_percent));
-        info.push(format!("Available: {:.2} GB", available));
+        let total_swap: f64 = self.sys.total_swap() as f64 / GIGABYTE;
+        let used_swap: f64 = self.sys.used_swap() as f64 / GIGABYTE;
+        let usage_percentage = (used_swap / total_swap) * 100.0;    
 
+        info.push(format!("Total: {:.2} GB     Total Swap: {:.2} GB", total, total_swap));
+         info.push(format!("Used: {:.2} GB ({:.1}%)   Used Swap: {:.2} GB ({:.1}%)", used, usage_percent, used_swap, usage_percentage));            
+        
         info
     }
 
@@ -156,10 +161,3 @@ impl DiskInfo for SystemInfo {
 
 } */
 
-/* 
-pub trait NetworkInfo {
-};
-
-impl NetworkInfo for SystemInfo {
-    
-} */

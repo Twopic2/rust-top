@@ -1,0 +1,50 @@
+use sysinfo::Networks;
+
+pub struct NetworkHarvester {
+    curr_rx: u64,
+    curr_tx: u64,
+    total_rx: u64,
+    total_tx: u64,
+    network: Networks,
+}
+
+impl NetworkHarvester {
+    pub fn init() -> Self {
+        let network = Networks::new_with_refreshed_list();                  
+        Self {
+            curr_rx: 0,
+            curr_tx: 0,
+            total_rx: 0,
+            total_tx: 0,
+            network,
+        }
+    }
+
+    pub fn get_curr_network_data(&mut self) -> Vec<u64> {
+        self.network.refresh(true);
+
+        self.curr_rx = 0;
+        self.curr_tx = 0;
+
+        for (_, netwrk) in self.network.iter() {
+            self.curr_rx += netwrk.received();
+            self.curr_tx += netwrk.transmitted();
+        }
+
+        vec![self.curr_rx, self.curr_tx]
+    }
+
+    pub fn get_total_network_data(&mut self) -> Vec<u64> {
+        self.network.refresh(true);
+
+        self.total_rx = 0;
+        self.total_tx = 0;
+
+        for (_, netwrk) in self.network.iter() {
+            self.total_rx += netwrk.total_received();
+            self.total_tx += netwrk.total_transmitted();
+        }
+
+        vec![self.total_rx, self.total_tx]
+    }
+}
