@@ -77,7 +77,10 @@ impl App {
             vec![Line::from("Cache info not available")]
         };
 
-        let mem_lines: Vec<Line<'static>> = Vec::new();
+        let memory_info = sys_info.display_memory();
+        let mem_lines: Vec<Line<'static>> = memory_info.iter()
+            .map(|s| Line::from(s.clone()))
+            .collect();
 
         let num_cores = sys_info.num_cores();
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
@@ -115,6 +118,11 @@ impl App {
             }
 
             self.network_histogram.update();
+
+            let memory_info = self.sys_info.display_memory();
+            self.mem_lines = memory_info.iter()
+                .map(|s| Line::from(s.clone()))
+                .collect();
 
             terminal.draw(|frame| self.draw(frame))?;
             self.handle_keystrokes()?;
@@ -162,8 +170,8 @@ impl App {
         frame.render_widget(outer_block, frame.area());
 
         let layout = Layout::horizontal([
-            Constraint::Percentage(40),
-            Constraint::Percentage(60),
+            Constraint::Percentage(50),
+            Constraint::Percentage(50),
         ]).split(inner_area);
 
         let num_cores = self.sys_info.num_cores();
@@ -192,9 +200,6 @@ impl App {
             cpu_lines.push(Line::from(core));
         }
 
-        let memory_info = self.sys_info.display_memory();
-        let memory_lines: Vec<Line> = memory_info.iter().map(|s| Line::from(s.as_str())).collect();
-
         let cpu_model_content_width = self.cpu_model_lines.iter()
             .map(|line| line.to_string().len())
             .max()
@@ -216,34 +221,18 @@ impl App {
             cpu_model_area
         );
 
-        #[cfg(target_os = "macos")]
         let cpu_cache_content_width = self.cpu_cache_lines.iter()
             .map(|line| line.to_string().len())
             .max()
             .unwrap_or(20) + 4;
 
-        #[cfg(target_os = "macos")]
         let cpu_cache_area = ratatui::layout::Rect {
             x: cpu_model_area.x + cpu_model_area.width,
             y: left_layout[0].y,
             width: cpu_cache_content_width.min((left_layout[0].width - cpu_model_area.width) as usize) as u16,
             height: left_layout[0].height,
         }; 
-
-        #[cfg(not(target_os = "macos"))]
-        let cpu_cache_content_width = self.cpu_cache_lines.iter()
-            .map(|line| line.to_string().len())
-            .max()
-            .unwrap_or(20) + 4;
-
-        #[cfg(not(target_os = "macos"))]
-        let cpu_cache_area = ratatui::layout::Rect {
-            x: cpu_model_area.x + cpu_model_area.width,
-            y: left_layout[0].y,
-            width: cpu_cache_content_width.min((left_layout[0].width - cpu_model_area.width) as usize) as u16,
-            height: left_layout[0].height,
-        };
-
+        
         frame.render_widget(
             Paragraph::new(self.cpu_cache_lines.clone())
                 .block(Block::new()
@@ -263,7 +252,7 @@ impl App {
         };
 
         frame.render_widget(
-            Paragraph::new(memory_lines.clone())
+            Paragraph::new(self.mem_lines.clone())
                 .block(Block::new()
                     .borders(Borders::ALL)
                     .title("Memory")
@@ -275,13 +264,6 @@ impl App {
         self.total_cpu_bar.render(frame, left_layout[2]);
         self.network_histogram.render(frame, left_layout[3]);
 
-        frame.render_widget(
-            Paragraph::new(memory_lines)
-                .block(Block::new()
-                    .borders(Borders::ALL)
-                    .title("Memory Info")
-                    .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))),
-            layout[1]
-        );
+       
     }
 }

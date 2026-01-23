@@ -1,7 +1,7 @@
 use ratatui::{
     Frame,
     layout::Rect,
-    widgets::{Block, Borders, Chart, Dataset, Axis},
+    widgets::{Block, Borders, Chart, Dataset, Axis, GraphType},
     style::{Color, Style, Modifier},
     symbols,
     text::Span,
@@ -91,7 +91,7 @@ impl NetworkHistogram {
         }
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect) {
+    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
         let current_rx = self.rx_history.last().map(|(_, v)| *v).unwrap_or(0.0);
         let current_tx = self.tx_history.last().map(|(_, v)| *v).unwrap_or(0.0);
 
@@ -110,6 +110,7 @@ impl NetworkHistogram {
                     Self::format_total(self.total_rx)
                 ))
                 .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
                 .style(Style::default().fg(Color::Green))
                 .data(&self.rx_history),
             Dataset::default()
@@ -119,6 +120,7 @@ impl NetworkHistogram {
                     Self::format_total(self.total_tx)
                 ))
                 .marker(symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
                 .style(Style::default().fg(Color::Yellow))
                 .data(&self.tx_history),
         ];
@@ -136,11 +138,13 @@ impl NetworkHistogram {
             Span::raw("0s"),
         ];
 
+        let ip_address = self.harvester.get_ip_adress();
+
         let chart = Chart::new(datasets)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title("Network")
+                    .title(ip_address)
                     .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
             )
             .x_axis(

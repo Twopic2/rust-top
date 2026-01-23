@@ -1,5 +1,5 @@
 use sysinfo::Networks;
-
+use local_ip_address::local_ip;
 pub struct NetworkHarvester {
     curr_rx: u64,
     curr_tx: u64,
@@ -46,5 +46,15 @@ impl NetworkHarvester {
         }
 
         vec![self.total_rx, self.total_tx]
+    }
+    
+    pub fn get_ip_adress(&mut self) -> String {
+        let local_ip = local_ip();
+
+        if let Ok(local_ip) = local_ip {
+            format!("Local IP address: {}", local_ip)
+        } else {
+            String::from("Unable to get local IP address")
+        }
     }
 }

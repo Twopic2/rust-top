@@ -1,10 +1,13 @@
-use std::{collections::HashMap};
+use std::collections::HashMap;
+#[cfg(not(target_os = "macos"))]
 use cache_size::{l1_cache_size, l2_cache_size, l3_cache_size};
-use sysinfo::{System, RefreshKind, Disks};
+use sysinfo::{System, RefreshKind};
 
+#[cfg(not(target_os = "macos"))]
 const KILOBYTE: usize = 1024;
 // ToDo: Make sure to fix MEGABYTE to match the proper value 
-const MEGABYTE: usize = 10000;
+#[cfg(not(target_os = "macos"))]
+const MEGABYTE: usize = 1024 * 1024;
 const GIGABYTE: f64 = 1024.0 * 1024.0 * 1024.0;
 
 
@@ -64,6 +67,7 @@ impl SystemInfo {
         Some(cpu_frequency)
     }
 
+    #[cfg(not(target_os = "macos"))]
     pub fn display_cpu_cache(&self) -> Option<HashMap<&str, String>> {
         let mut cache_info = HashMap::new();
 
@@ -102,17 +106,13 @@ impl SystemInfo {
     pub fn display_memory(&self) -> Vec<String> {
         let mut info = Vec::new();
 
-        let total= self.sys.total_memory() as f64 / GIGABYTE; 
+        let total= self.sys.total_memory() as f64 / GIGABYTE;
         let used = self.sys.used_memory() as f64 / GIGABYTE;
         let usage_percent = (used / total) * 100.0;
 
-        let total_swap: f64 = self.sys.total_swap() as f64 / GIGABYTE;
-        let used_swap: f64 = self.sys.used_swap() as f64 / GIGABYTE;
-        let usage_percentage = (used_swap / total_swap) * 100.0;    
+        info.push(format!("Total: {:.2} GB", total));
+        info.push(format!("Used: {:.2} GB ({:.1}%)", used, usage_percent));
 
-        info.push(format!("Total: {:.2} GB     Total Swap: {:.2} GB", total, total_swap));
-         info.push(format!("Used: {:.2} GB ({:.1}%)   Used Swap: {:.2} GB ({:.1}%)", used, usage_percent, used_swap, usage_percentage));            
-        
         info
     }
 
@@ -153,11 +153,3 @@ impl OsInfo for SystemInfo {
         v
     }
 }
-
-/* pub trait DiskInfo {
-}
-
-impl DiskInfo for SystemInfo {
-
-} */
-
