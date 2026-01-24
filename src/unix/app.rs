@@ -120,7 +120,7 @@ impl App {
 
             if let Some(mut freq_vec) = self.sys_info.display_cpu_frequency() {
                 if let Some(freq) = freq_vec.pop() {
-                    self.core_graph.set_cpu_frequency(freq);
+                    self.core_graph.set_cpu_frequency(freq.to_string());
                 }
             }
 

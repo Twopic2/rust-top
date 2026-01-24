@@ -47,20 +47,19 @@ impl SystemInfo {
         Some(cores)
     }
 
-    pub fn display_cpu_frequency(&mut self) -> Option<Vec<String>> {
+    pub fn display_cpu_frequency(&mut self) -> Option<String> {
         if self.sys.cpus().is_empty() {
             return None;
         }
 
-        let mut cpu_frequency = Vec::new();
-        cpu_frequency.push(String::new());
+        let mut cpu_frequency = String::new();
 
         for cpu in self.sys.cpus() {
             if cpu.frequency().to_string().is_empty() {
                 return None;
             }
 
-            cpu_frequency.push(cpu.frequency().to_string());
+            cpu_frequency.push_str(&cpu.frequency().to_string());
         }
 
         Some(cpu_frequency)
