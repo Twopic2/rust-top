@@ -5,9 +5,8 @@ use sysinfo::{System, RefreshKind};
 
 #[cfg(not(target_os = "macos"))]
 const KILOBYTE: usize = 1024;
-// ToDo: Make sure to fix MEGABYTE to match the proper value 
 #[cfg(not(target_os = "macos"))]
-const MEGABYTE: usize = 1024 * 1024;
+const MEGABYTE: usize = 10000;
 const GIGABYTE: f64 = 1024.0 * 1024.0 * 1024.0;
 
 
@@ -128,28 +127,16 @@ impl SystemInfo {
 }
 
 pub trait OsInfo {
-    fn display_kernel(&self) -> Vec<String>;
-    fn display_host_name(&self) -> Vec<String>;
+    fn display_kernel(&self) -> String;
+    fn display_host_name(&self) -> String;
 }
 
 impl OsInfo for SystemInfo {
-    fn display_kernel(&self) -> Vec<String> {
-        let mut v = Vec::new();
-        v.push(String::new());
-
-        let kernel = System::kernel_version();
-
-        v.push(format!("{}", kernel.unwrap_or_else(|| String::from("No Kernel data available"))));
-        v
+    fn display_kernel(&self) -> String {
+        System::kernel_version().unwrap_or_else(|| String::from("No Kernel data available"))
     }
 
-    fn display_host_name(&self) -> Vec<String> {
-        let mut v = Vec::new();
-        v.push(String::new());
-
-        let os = System::host_name();
-
-        v.push(format!("{}", os.unwrap_or_else(|| String::from("No Os data available"))));
-        v
+    fn display_host_name(&self) -> String {
+        System::host_name().unwrap_or_else(|| String::from("No Os data available"))
     }
 }

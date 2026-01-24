@@ -14,7 +14,8 @@ use ratatui::{
 use crate::unix::darwin::cache::CacheMac;
 
 use crate::unix::info::{OsInfo, SystemInfo};
-use crate::draw::graph::{MultiCoreGraph, ColorScheme};
+use crate::unix::disk::DiskData;
+use crate::draw::graph::{MultiCoreGraph, DiskGraph, ColorScheme};
 use crate::draw::bar::{TotalCoreBar, BarColorScheme};
 use crate::draw::histogram::NetworkHistogram;
 
@@ -27,6 +28,8 @@ pub struct App {
     core_graph: MultiCoreGraph,
     total_cpu_bar: TotalCoreBar,
     network_histogram: NetworkHistogram,
+    disk_data: DiskData,
+    disk_graph: DiskGraph,
 }
 
 impl App {    
@@ -86,6 +89,8 @@ impl App {
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
         let total_cpu_bar = TotalCoreBar::new(BarColorScheme::Green);
         let network_histogram = NetworkHistogram::new(60);
+        let disk_data = DiskData::new();
+        let disk_graph = DiskGraph::new();
 
         Self {
             should_quit: false,
@@ -96,6 +101,8 @@ impl App {
             core_graph,
             total_cpu_bar,
             network_histogram,
+            disk_data,
+            disk_graph,
         }
     }
 
@@ -118,6 +125,9 @@ impl App {
             }
 
             self.network_histogram.update();
+
+            self.disk_data.refresh();
+            self.disk_graph.update(&mut self.disk_data);
 
             let memory_info = self.sys_info.display_memory();
             self.mem_lines = memory_info.iter()
@@ -155,9 +165,9 @@ impl App {
             " Quit ".red().bold().into(),
             "<Q/Esc> ".red().bold(),
         ]);
-
-        let kernel_output = self.sys_info.display_kernel().join(" ");
-        let hostname_output = self.sys_info.display_host_name().join(" ");
+        
+        let kernel_output = self.sys_info.display_kernel();
+        let hostname_output = self.sys_info.display_host_name();
 
         let outer_block = Block::bordered()
             .title(title.centered())
@@ -264,6 +274,11 @@ impl App {
         self.total_cpu_bar.render(frame, left_layout[2]);
         self.network_histogram.render(frame, left_layout[3]);
 
-       
+        // Right side layout
+        let right_layout = Layout::vertical([
+            Constraint::Min(10),
+        ]).split(layout[1]);
+
+        self.disk_graph.render(frame, right_layout[0]);
     }
 }
