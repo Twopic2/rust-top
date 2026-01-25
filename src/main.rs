@@ -1,7 +1,8 @@
 mod unix;
 mod draw;
+mod app;
 
-use unix::app::App;
+use app::App;
 use std::io;
 
 fn main() -> io::Result<()> {

@@ -1,20 +1,19 @@
-use sysinfo::Disks;
-use sysinfo::System;
+use sysinfo::{Disks, System};
 
-/* implamentation inspired by Bottom 
+/* implamentation inspired by Bottom
 https://github.com/ClementTsang/bottom
 */
 #[derive(Debug)]
 pub struct DiskData {
     sys: System,
     disks: Disks,
-    disk_name: String,
-    filesytem: String,
-    mount: String,
-    total: u64,
-    available: u64,
-    read: u64,
-    write: u64,
+    disk_name: Vec<String>,
+    filesytem: Vec<String>,
+    mount: Vec<String>,
+    total: Vec<u64>,
+    available: Vec<u64>,
+    curr_read: Vec<u64>,
+    curr_write: Vec<u64>,
 }
 
 impl DiskData {
@@ -24,13 +23,13 @@ impl DiskData {
         Self {
             sys,
             disks,
-            disk_name: String::new(),
-            filesytem: String::new(),
-            mount: String::new(),
-            total: 0,
-            available: 0,
-            read: 0,
-            write: 0,
+            disk_name: Vec::new(),
+            filesytem: Vec::new(),
+            mount: Vec::new(),
+            total: Vec::new(),
+            available: Vec::new(),
+            curr_read: Vec::new(),
+            curr_write: Vec::new(),
         }
     }
 
@@ -38,55 +37,77 @@ impl DiskData {
         self.disks.refresh(true);
         self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
     }
+    
+    fn get_total_io_read(&self) -> u64 {
+        self.sys.processes()
+            .values()
+            .map(|p| p.disk_usage().read_bytes)
+            .sum()
+    }
 
-    pub fn get_disk(&mut self) -> &str {
-        if let Some(disk) = self.disks.list().first() {
-            self.disk_name = disk.name().to_string_lossy().to_string();
+    fn get_total_io_write(&self) -> u64 {
+        self.sys.processes()
+            .values()
+            .map(|p| p.disk_usage().written_bytes)
+            .sum()
+    }
+
+    pub fn collect_all(&mut self) {
+        let mut disks_data: Vec<_> = self.disks.list().iter()
+            .filter(|d| d.name().to_string_lossy().starts_with("/dev/"))
+            .map(|d| (
+                d.name().to_string_lossy().to_string(),
+                d.file_system().to_string_lossy().to_string(),
+                d.mount_point().to_string_lossy().to_string(),
+                d.total_space(),
+                d.available_space(),
+            )).collect();
+
+            disks_data.sort_by(|a, b| a.2.cmp(&b.2));
+
+            let len = disks_data.len();
+            self.disk_name = disks_data.iter().map(|d| d.0.clone()).collect();
+            self.filesytem = disks_data.iter().map(|d| d.1.clone()).collect();
+            self.mount = disks_data.iter().map(|d| d.2.clone()).collect();
+            self.total = disks_data.iter().map(|d| d.3).collect();
+            self.available = disks_data.iter().map(|d| d.4).collect();
+
+            let total_read = self.get_total_io_read();
+            let total_write = self.get_total_io_write();
+
+            self.curr_read = vec![total_read; len];
+            self.curr_write = vec![total_write; len];
         }
+
+    pub fn get_disks(&self) -> &[String] {
         &self.disk_name
     }
 
-    pub fn get_filesystem(&mut self) -> &str {
-        if let Some(disk) = self.disks.list().first() {
-            self.filesytem = disk.file_system().to_string_lossy().to_string();
-        }
+    pub fn get_filesystems(&self) -> &[String] {
         &self.filesytem
     }
 
-    pub fn get_mount(&mut self) -> &str {
-        if let Some(disk) = self.disks.list().first() {
-            self.mount = disk.mount_point().to_string_lossy().to_string();
-        }
+    pub fn get_mounts(&self) -> &[String] {
         &self.mount
     }
 
-    pub fn get_total(&mut self) -> u64 {
-        if let Some(disk) = self.disks.list().first() {
-            self.total = disk.total_space();
-        }
-        self.total
+    pub fn get_totals(&self) -> &[u64] {
+        &self.total
     }
 
-    pub fn get_available(&mut self) -> u64 {
-        if let Some(disk) = self.disks.list().first() {
-            self.available = disk.available_space();
-        }
-        self.available
+    pub fn get_available(&self) -> &[u64] {
+        &self.available
     }
 
-    pub fn get_read(&mut self) -> u64 {
-        self.read = self.sys.processes()
-            .values()
-            .map(|p| p.disk_usage().total_read_bytes)
-            .sum();
-        self.read
+    pub fn get_reads(&self) -> &[u64] {
+        &self.curr_read
     }
 
-    pub fn get_write(&mut self) -> u64 {
-        self.write = self.sys.processes()
-            .values()
-            .map(|p| p.disk_usage().total_written_bytes)
-            .sum();
-        self.write
+    pub fn get_writes(&self) -> &[u64] {
+        &self.curr_write
+    }
+
+    pub fn len(&self) -> usize {
+        self.disk_name.len()
     }
 }

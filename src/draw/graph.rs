@@ -7,7 +7,8 @@ use ratatui::{
     layout::Constraint,
 };
 
-use crate::unix::disk::DiskData;
+use crate::unix::{disk::DiskData, info::OsInfo};
+use crate::unix::info::SystemInfo;
 
 const KB: u64 = 1024;
 const MB: u64 = KB * 1024;
@@ -73,15 +74,17 @@ impl ColorScheme {
 pub struct MultiCoreGraph {
     cores: Vec<Vec<f64>>,
     color_scheme: ColorScheme,
-    cpu_frequency: Option<String>,
+    sys_info: SystemInfo,
 }
 
 impl MultiCoreGraph {
     pub fn new(num_cores: usize, color_scheme: ColorScheme) -> Self {
+        let sys_info = SystemInfo::new();
+
         Self {
             cores: vec![Vec::new(); num_cores],
             color_scheme,
-            cpu_frequency: None,
+            sys_info,
         }
     }
 
@@ -100,21 +103,14 @@ impl MultiCoreGraph {
         }
     }
 
-    pub fn set_cpu_frequency(&mut self, frequency: String) {
-        self.cpu_frequency = Some(frequency);
-    }
-
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
-        let title2 = if let Some(ref freq) = self.cpu_frequency {
-            format!("{} MHz", freq)
-        } else {
-            "0 MHz".to_string()
-        };
+        let cpu_freq = self.sys_info.display_cpu_frequency().unwrap_or_else(|| 0);
+        let cpu_freq = format!("{:.2} GHz", cpu_freq as f64 / 1000.0);
 
         let block = Block::default()
             .borders(Borders::ALL)
             .title("Cpu Cores")
-            .title(Line::from(title2).right_aligned())
+            .title(Line::from(cpu_freq).right_aligned())
             .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
 
         let inner_area = block.inner(area);
@@ -216,34 +212,33 @@ pub struct DiskDisplayEntry {
 
 pub struct DiskGraph {
     entries: Vec<DiskDisplayEntry>,
+    sys_info: SystemInfo,
 }
 
 impl DiskGraph {
     pub fn new() -> Self {
+        let sys_info = SystemInfo::new();
         Self {
             entries: Vec::new(),
+            sys_info,
         }
     }
 
     pub fn update(&mut self, disk_data: &mut DiskData) {
-        let name = disk_data.get_disk().to_string();
-        let filesystem = disk_data.get_filesystem().to_string();
-        let mount = disk_data.get_mount().to_string();
-        let total = disk_data.get_total();
-        let available = disk_data.get_available();
-        let io_read = disk_data.get_read();
-        let io_write = disk_data.get_write();
+        disk_data.collect_all();
 
         self.entries.clear();
-        self.entries.push(DiskDisplayEntry {
-            name,
-            filesystem,
-            mount,
-            total,
-            available,
-            io_read,
-            io_write,
-        });
+        for i in 0..disk_data.len() {
+            self.entries.push(DiskDisplayEntry {
+                name: disk_data.get_disks()[i].clone(),
+                filesystem: disk_data.get_filesystems()[i].clone(),
+                mount: disk_data.get_mounts()[i].clone(),
+                total: disk_data.get_totals()[i],
+                available: disk_data.get_available()[i],
+                io_read: disk_data.get_reads()[i],
+                io_write: disk_data.get_writes()[i],
+            });
+        }
     }
 
     fn format_bytes(bytes: u64) -> String {
@@ -261,9 +256,13 @@ impl DiskGraph {
     }
 
     pub fn render(&self, frame: &mut Frame, area: Rect) {
+        let kernel_output = self.sys_info.display_kernel();
+        let kernel_output = format!("Kernel {}", kernel_output);
+
         let block = Block::default()
             .borders(Borders::ALL)
             .title("Disk Usage")
+            .title(Line::from(kernel_output).right_aligned())
             .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD));
 
         let inner_area = block.inner(area);
@@ -273,27 +272,18 @@ impl DiskGraph {
             return;
         }
 
-        let header_cells = ["Disk", "FS", "Mount", "Used", "Total", "IO R", "IO W"]
+        let header_cells = ["Disk", "FS", "Mount", "Total", "Available","IO R", "IO W"]
             .iter()
             .map(|h| Cell::from(*h).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)));
         let header = Row::new(header_cells).height(1);
 
         let rows: Vec<Row> = self.entries.iter().map(|entry| {
-            let used = entry.total.saturating_sub(entry.available);
-            let usage_percent = if entry.total > 0 {
-                (used as f64 / entry.total as f64) * 100.0
-            } else {
-                0.0
-            };
-
-            let used_str = format!("{} ({:.1}%)", Self::format_bytes(used), usage_percent);
-
             Row::new(vec![
                 Cell::from(entry.name.clone()).style(Style::default().fg(Color::White)),
                 Cell::from(entry.filesystem.clone()).style(Style::default().fg(Color::Gray)),
                 Cell::from(entry.mount.clone()).style(Style::default().fg(Color::Gray)),
-                Cell::from(used_str).style(Style::default()),
                 Cell::from(Self::format_bytes(entry.total)).style(Style::default().fg(Color::White)),
+                Cell::from(Self::format_bytes(entry.available)).style(Style::default().fg(Color::White)),
                 Cell::from(Self::format_bytes(entry.io_read)).style(Style::default().fg(Color::Green)),
                 Cell::from(Self::format_bytes(entry.io_write)).style(Style::default().fg(Color::Red)),
             ])
@@ -311,7 +301,8 @@ impl DiskGraph {
 
         let table = Table::new(rows, widths)
             .header(header)
-            .row_highlight_style(Style::default().add_modifier(Modifier::BOLD));
+            .row_highlight_style(Style::default().add_modifier(Modifier::BOLD))
+            ;
 
         frame.render_widget(table, inner_area);
     }

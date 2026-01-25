@@ -47,22 +47,20 @@ impl SystemInfo {
         Some(cores)
     }
 
-    pub fn display_cpu_frequency(&mut self) -> Option<String> {
+    pub fn display_cpu_frequency(&mut self) -> Option<u64> {
         if self.sys.cpus().is_empty() {
             return None;
         }
-
-        let mut cpu_frequency = String::new();
 
         for cpu in self.sys.cpus() {
             if cpu.frequency().to_string().is_empty() {
                 return None;
             }
-
-            cpu_frequency.push_str(&cpu.frequency().to_string());
+            let freq = cpu.frequency();
+            return Some(freq);
         }
 
-        Some(cpu_frequency)
+        None
     }
 
     #[cfg(not(target_os = "macos"))]

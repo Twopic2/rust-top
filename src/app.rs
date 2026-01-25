@@ -1,6 +1,8 @@
 use std::{io, time::Duration};
+use std::time::Instant;
 
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, DisableMouseCapture};
+use crossterm::execute;
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Layout},
@@ -107,8 +109,10 @@ impl App {
     }
 
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+        execute!(io::stdout(), DisableMouseCapture)?;
+
         loop {
-            self.sys_info.set_refresh_timer();
+            self.sys_info.set_refresh_timer() ;
 
             let core_usages = self.sys_info.get_core_usages();
 
@@ -117,12 +121,6 @@ impl App {
             }
 
             self.total_cpu_bar.update(&core_usages);
-
-            if let Some(mut freq_vec) = self.sys_info.display_cpu_frequency() {
-                if let Some(freq) = freq_vec.pop() {
-                    self.core_graph.set_cpu_frequency(freq.to_string());
-                }
-            }
 
             self.network_histogram.update();
 
@@ -143,15 +141,25 @@ impl App {
         }
         Ok(())
     }
-    
+
     fn handle_keystrokes(&mut self) -> io::Result<()> {
-        if event::poll(Self::TICK_RATE)? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press {
-                    match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
-                        _ => {}
+        let deadline = Instant::now() + Self::TICK_RATE;
+
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            if remaining.is_zero() {
+                break; 
+            }
+
+            if event::poll(remaining)? {
+                match event::read()? {
+                    Event::Key(key) if key.kind == KeyEventKind::Press => {
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
+                            _ => {}
+                        }
                     }
+                    _ => {}
                 }
             }
         }
@@ -166,14 +174,12 @@ impl App {
             "<Q/Esc> ".red().bold(),
         ]);
         
-        let kernel_output = self.sys_info.display_kernel();
         let hostname_output = self.sys_info.display_host_name();
 
         let outer_block = Block::bordered()
             .title(title.centered())
             .title(Line::from(hostname_output).left_aligned())
             .title_bottom(instructions.centered())
-            .title(Line::from(kernel_output).right_aligned())
             .border_set(border::THICK);
 
         let inner_area = outer_block.inner(frame.area());
@@ -274,7 +280,6 @@ impl App {
         self.total_cpu_bar.render(frame, left_layout[2]);
         self.network_histogram.render(frame, left_layout[3]);
 
-        // Right side layout
         let right_layout = Layout::vertical([
             Constraint::Min(10),
         ]).split(layout[1]);
