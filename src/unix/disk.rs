@@ -53,31 +53,41 @@ impl DiskData {
     }
 
     pub fn collect_all(&mut self) {
+        #[cfg(target_os = "macos")] 
         let mut disks_data: Vec<_> = self.disks.list().iter()
-            .filter(|d| d.name().to_string_lossy().starts_with("/dev/"))
-            .map(|d| (
-                d.name().to_string_lossy().to_string(),
-                d.file_system().to_string_lossy().to_string(),
-                d.mount_point().to_string_lossy().to_string(),
-                d.total_space(),
-                d.available_space(),
-            )).collect();
+        .map(|d| (
+            d.name().to_string_lossy().to_string(),
+            d.file_system().to_string_lossy().to_string(),
+            d.mount_point().to_string_lossy().to_string(),
+            d.total_space(),
+            d.available_space(),
+        )).collect();
+        
+        #[cfg(not(target_os = "macos"))] 
+        let mut disks_data: Vec<_> = self.disks.list().iter()
+        .filter(|d| d.name().to_string_lossy().starts_with("/dev/"))
+        .map(|d| (
+            d.name().to_string_lossy().to_string(),
+            d.file_system().to_string_lossy().to_string(),
+            d.mount_point().to_string_lossy().to_string(),
+            d.total_space(),
+            d.available_space(),
+        )).collect();
 
-            disks_data.sort_by(|a, b| a.2.cmp(&b.2));
+        disks_data.sort_by(|a, b| a.2.cmp(&b.2));
 
-            let len = disks_data.len();
-            self.disk_name = disks_data.iter().map(|d| d.0.clone()).collect();
-            self.filesytem = disks_data.iter().map(|d| d.1.clone()).collect();
-            self.mount = disks_data.iter().map(|d| d.2.clone()).collect();
-            self.total = disks_data.iter().map(|d| d.3).collect();
-            self.available = disks_data.iter().map(|d| d.4).collect();
+        self.disk_name = disks_data.iter().map(|d| d.0.clone()).collect();
+        self.filesytem = disks_data.iter().map(|d| d.1.clone()).collect();
+        self.mount = disks_data.iter().map(|d| d.2.clone()).collect();
+        self.total = disks_data.iter().map(|d| d.3).collect();
+        self.available = disks_data.iter().map(|d| d.4).collect();
 
-            let total_read = self.get_total_io_read();
-            let total_write = self.get_total_io_write();
+        let total_read = self.get_total_io_read();
+        let total_write = self.get_total_io_write();
 
-            self.curr_read = vec![total_read; len];
-            self.curr_write = vec![total_write; len];
-        }
+        self.curr_read = vec![total_read; disks_data.len()];
+        self.curr_write = vec![total_write; disks_data.len()];
+    }
 
     pub fn get_disks(&self) -> &[String] {
         &self.disk_name
