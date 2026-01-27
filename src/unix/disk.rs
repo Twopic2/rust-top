@@ -34,11 +34,17 @@ impl DiskData {
     }
 
     pub fn refresh(&mut self) {
+        #[cfg(not(target_os = "macos"))]
         self.disks.refresh(true);
-        self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, true);
+
+        self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, false);
     }
     
     fn get_total_io_read(&self) -> u64 {
+        #[cfg(target_os = "macos")]
+        return 0;
+
+        #[cfg(not(target_os = "macos"))]
         self.sys.processes()
             .values()
             .map(|p| p.disk_usage().read_bytes)
@@ -46,6 +52,10 @@ impl DiskData {
     }
 
     fn get_total_io_write(&self) -> u64 {
+        #[cfg(target_os = "macos")]
+        return 0;
+
+        #[cfg(not(target_os = "macos"))]
         self.sys.processes()
             .values()
             .map(|p| p.disk_usage().written_bytes)
@@ -53,8 +63,18 @@ impl DiskData {
     }
 
     pub fn collect_all(&mut self) {
-        #[cfg(target_os = "macos")] 
+        #[cfg(target_os = "macos")]
         let mut disks_data: Vec<_> = self.disks.list().iter()
+        .filter(|d| {
+            let mount_point = d.mount_point().to_string_lossy();
+            let name = d.name().to_string_lossy();
+            // Annoying fucking lines when I was in debug mode
+            !mount_point.starts_with("/System/Volumes/") &&
+            !mount_point.starts_with("/private/var/") &&
+            !mount_point.starts_with("/dev") &&
+            !name.contains("disk image") &&
+            d.total_space() > 0 // Skip empty volumes
+        })
         .map(|d| (
             d.name().to_string_lossy().to_string(),
             d.file_system().to_string_lossy().to_string(),
@@ -62,8 +82,8 @@ impl DiskData {
             d.total_space(),
             d.available_space(),
         )).collect();
-        
-        #[cfg(not(target_os = "macos"))] 
+
+        #[cfg(not(target_os = "macos"))]
         let mut disks_data: Vec<_> = self.disks.list().iter()
         .filter(|d| d.name().to_string_lossy().starts_with("/dev/"))
         .map(|d| (

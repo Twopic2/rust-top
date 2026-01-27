@@ -1,6 +1,7 @@
 mod unix;
 mod draw;
 mod app;
+mod event;
 
 use app::App;
 use std::io;

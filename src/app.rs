@@ -1,8 +1,9 @@
 use std::{io, time::Duration};
-use std::time::Instant;
 
-use crossterm::event::{self, Event, KeyCode, KeyEventKind, DisableMouseCapture};
+use crossterm::event::EnableMouseCapture;
 use crossterm::execute;
+use crate::event::handle_events;
+use crate::draw::misc::TickButton;
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Layout},
@@ -22,7 +23,6 @@ use crate::draw::bar::{TotalCoreBar, BarColorScheme};
 use crate::draw::histogram::NetworkHistogram;
 
 pub struct App {
-    should_quit: bool,
     sys_info: SystemInfo,
     cpu_model_lines: Vec<Line<'static>>,
     cpu_cache_lines: Vec<Line<'static>>,
@@ -32,11 +32,10 @@ pub struct App {
     network_histogram: NetworkHistogram,
     disk_data: DiskData,
     disk_graph: DiskGraph,
+    duration_control: TickButton,
 }
 
-impl App {    
-    const TICK_RATE: Duration = Duration::from_millis(2000);
-
+impl App {
     pub fn new() -> Self {
         let sys_info = SystemInfo::new();
 
@@ -93,9 +92,9 @@ impl App {
         let network_histogram = NetworkHistogram::new(60);
         let disk_data = DiskData::new();
         let disk_graph = DiskGraph::new();
+        let duration_control = TickButton::new(Duration::from_millis(2000));
 
         Self {
-            should_quit: false,
             sys_info,
             cpu_model_lines,
             cpu_cache_lines,
@@ -105,14 +104,15 @@ impl App {
             network_histogram,
             disk_data,
             disk_graph,
+            duration_control,
         }
     }
 
     pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
-        execute!(io::stdout(), DisableMouseCapture)?;
+        execute!(io::stdout(), EnableMouseCapture)?;
 
         loop {
-            self.sys_info.set_refresh_timer() ;
+            self.sys_info.set_refresh_timer();
 
             let core_usages = self.sys_info.get_core_usages();
 
@@ -133,34 +133,9 @@ impl App {
                 .collect();
 
             terminal.draw(|frame| self.draw(frame))?;
-            self.handle_keystrokes()?;
 
-            if self.should_quit {
+            if handle_events(&mut self.duration_control)? {
                 break;
-            }
-        }
-        Ok(())
-    }
-
-    fn handle_keystrokes(&mut self) -> io::Result<()> {
-        let deadline = Instant::now() + Self::TICK_RATE;
-
-        loop {
-            let remaining = deadline.saturating_duration_since(Instant::now());
-            if remaining.is_zero() {
-                break; 
-            }
-
-            if event::poll(remaining)? {
-                match event::read()? {
-                    Event::Key(key) if key.kind == KeyEventKind::Press => {
-                        match key.code {
-                            KeyCode::Char('q') | KeyCode::Esc => self.should_quit = true,
-                            _ => {}
-                        }
-                    }
-                    _ => {}
-                }
             }
         }
         Ok(())
@@ -185,6 +160,16 @@ impl App {
         let inner_area = outer_block.inner(frame.area());
         frame.render_widget(outer_block, frame.area());
 
+        let duration_ms = self.duration_control.get_duration().as_millis();
+        let duration_text_len = format!("   - {}ms  +   ", duration_ms).len() as u16;
+        let duration_area = ratatui::layout::Rect {
+            x: frame.area().width.saturating_sub(duration_text_len + 2),
+            y: 0,
+            width: duration_text_len,
+            height: 1,
+        };
+        self.duration_control.render(frame, duration_area);
+
         let layout = Layout::horizontal([
             Constraint::Percentage(50),
             Constraint::Percentage(50),
@@ -197,7 +182,6 @@ impl App {
         let cores_per_row = (left_width / (label_width + min_bar_width)).max(1);
         let num_rows = (num_cores + cores_per_row - 1) / cores_per_row;
         let cpu_cores_height = (num_rows + 2).max(5) as u16;
-
         let cpu_info_height = (self.cpu_model_lines.len().max(self.cpu_cache_lines.len()).max(2) + 2) as u16;
 
         let left_layout = Layout::vertical([
