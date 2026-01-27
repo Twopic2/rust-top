@@ -104,10 +104,12 @@ impl SystemInfo {
 
         let total= self.sys.total_memory() as f64 / GIGABYTE;
         let used = self.sys.used_memory() as f64 / GIGABYTE;
-        let usage_percent = (used / total) * 100.0;
+        
+        let total_swap: f64 = self.sys.total_swap() as f64 / GIGABYTE;
+        let used_swap: f64 = self.sys.used_swap() as f64 / GIGABYTE;
 
-        info.push(format!("Total: {:.2} GB", total));
-        info.push(format!("Used: {:.2} GB ({:.1}%)", used, usage_percent));
+        info.push(format!("Total: {:.2} GB    Total Swap: {:.2} GB", total, total_swap));
+        info.push(format!("Used: {:.2} GB    Used Swap: ({:.2} GB)", used, used_swap));
 
         info
     }
