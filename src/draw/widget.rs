@@ -24,11 +24,23 @@ impl TempWidget {
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
         if let Some(all_temps) = self.temp_data.get_all_temps() {
             let mut total_temp: HashMap<String, f32> = HashMap::new();
+            let mut has_tdie = false;
 
             for (label, temp_opt) in all_temps {
-                if let Some(temp) = temp_opt {
-                    total_temp.insert(label, temp);
-                }
+                /* For apple products */
+                if label.contains("tdie") {
+                    if !has_tdie {
+                        if let Some(temp) = temp_opt {
+                            total_temp.insert(label, temp);
+                            has_tdie = true;
+                        }
+                    }
+                } else if label.contains("NAND") {
+                    if let Some(temp) = temp_opt {
+                        total_temp.insert(label, temp);
+                    }
+                } 
+                /* For Unix */
             }
 
             let mut lines: Vec<Line> = Vec::new();
