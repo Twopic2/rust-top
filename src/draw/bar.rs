@@ -6,8 +6,6 @@ use ratatui::{
     text::{Line, Span},
 };
 
-use crate::unix::temp::TempData;
-
 pub enum BarColorScheme {
     Green,
     Yellow,
@@ -35,14 +33,11 @@ impl BarColorScheme {
 pub struct TotalCoreBar {
     total_usage: f64,
     color_scheme: BarColorScheme,
-    temp: TempData,
 }
 
 impl TotalCoreBar {
     pub fn new(color_scheme: BarColorScheme) -> Self {
-        let temp = TempData::new();
         Self {
-            temp,
             total_usage: 0.0,
             color_scheme,
         }
@@ -57,13 +52,9 @@ impl TotalCoreBar {
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
-        let cpu_temp = self.temp.get_cpu_temp().map(|t| format!("{:.1}°C", t))
-        .unwrap_or_else(|| "N/A".to_string());
-
         let block = Block::default()
             .borders(Borders::ALL)
             .title("Total CPU Usage")
-            .title(Line::from(cpu_temp).right_aligned())
             .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
 
         let inner_area = block.inner(area);

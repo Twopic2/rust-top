@@ -21,6 +21,7 @@ use crate::unix::disk::DiskData;
 use crate::draw::graph::{MultiCoreGraph, DiskGraph, ColorScheme};
 use crate::draw::bar::{TotalCoreBar, BarColorScheme};
 use crate::draw::histogram::NetworkHistogram;
+use crate::draw::widget::TempWidget;
 
 pub struct App {
     sys_info: SystemInfo,
@@ -29,6 +30,7 @@ pub struct App {
     mem_lines: Vec<Line<'static>>,
     core_graph: MultiCoreGraph,
     total_cpu_bar: TotalCoreBar,
+    temp_widget: TempWidget,
     network_histogram: NetworkHistogram,
     disk_data: DiskData,
     disk_graph: DiskGraph,
@@ -89,6 +91,7 @@ impl App {
         let num_cores = sys_info.num_cores();
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
         let total_cpu_bar = TotalCoreBar::new(BarColorScheme::Green);
+        let temp_widget = TempWidget::new();
         let network_histogram = NetworkHistogram::new(60);
         let disk_data = DiskData::new();
         let disk_graph = DiskGraph::new();
@@ -101,6 +104,7 @@ impl App {
             mem_lines,
             core_graph,
             total_cpu_bar,
+            temp_widget,
             network_histogram,
             disk_data,
             disk_graph,
@@ -188,6 +192,7 @@ impl App {
             Constraint::Length(cpu_info_height),
             Constraint::Length(cpu_cores_height),
             Constraint::Length(3),
+            Constraint::Length(5),
             Constraint::Min(10),
         ]).split(layout[0]);
 
@@ -262,7 +267,8 @@ impl App {
 
         self.core_graph.render(frame, left_layout[1]);
         self.total_cpu_bar.render(frame, left_layout[2]);
-        self.network_histogram.render(frame, left_layout[3]);
+        self.temp_widget.render(frame, left_layout[3]);
+        self.network_histogram.render(frame, left_layout[4]);
 
         let right_layout = Layout::vertical([
             Constraint::Min(10),

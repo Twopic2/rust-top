@@ -307,3 +307,4 @@ impl DiskGraph {
         frame.render_widget(table, inner_area);
     }
 }
+
