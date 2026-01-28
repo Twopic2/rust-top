@@ -19,7 +19,7 @@ use crate::unix::darwin::cache::CacheMac;
 use crate::unix::info::{OsInfo, SystemInfo};
 use crate::unix::disk::DiskData;
 use crate::draw::graph::{MultiCoreGraph, DiskGraph, ColorScheme};
-use crate::draw::bar::{TotalCoreBar, BarColorScheme};
+use crate::draw::bar::{TotalCoreBar, TempBar, BarColorScheme};
 use crate::draw::histogram::NetworkHistogram;
 use crate::draw::widget::TempWidget;
 
@@ -31,6 +31,7 @@ pub struct App {
     core_graph: MultiCoreGraph,
     total_cpu_bar: TotalCoreBar,
     temp_widget: TempWidget,
+    temp_bar: TempBar,
     network_histogram: NetworkHistogram,
     disk_data: DiskData,
     disk_graph: DiskGraph,
@@ -92,6 +93,7 @@ impl App {
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
         let total_cpu_bar = TotalCoreBar::new(BarColorScheme::Green);
         let temp_widget = TempWidget::new();
+        let temp_bar = TempBar::new(BarColorScheme::Green);
         let network_histogram = NetworkHistogram::new(60);
         let disk_data = DiskData::new();
         let disk_graph = DiskGraph::new();
@@ -105,6 +107,7 @@ impl App {
             core_graph,
             total_cpu_bar,
             temp_widget,
+            temp_bar,
             network_histogram,
             disk_data,
             disk_graph,
@@ -125,6 +128,7 @@ impl App {
             }
 
             self.total_cpu_bar.update(&core_usages);
+            self.temp_bar.update();
 
             self.network_histogram.update();
 
@@ -187,12 +191,13 @@ impl App {
         let num_rows = (num_cores + cores_per_row - 1) / cores_per_row;
         let cpu_cores_height = (num_rows + 2).max(5) as u16;
         let cpu_info_height = (self.cpu_model_lines.len().max(self.cpu_cache_lines.len()).max(2) + 2) as u16;
+        let temp_widget_height = self.temp_widget.get_height();
 
         let left_layout = Layout::vertical([
             Constraint::Length(cpu_info_height),
             Constraint::Length(cpu_cores_height),
             Constraint::Length(3),
-            Constraint::Length(5),
+            Constraint::Length(temp_widget_height),
             Constraint::Min(10),
         ]).split(layout[0]);
 
@@ -267,8 +272,18 @@ impl App {
 
         self.core_graph.render(frame, left_layout[1]);
         self.total_cpu_bar.render(frame, left_layout[2]);
-        self.temp_widget.render(frame, left_layout[3]);
+
+        let temp_length = self.temp_widget.get_length();
+        let temp_layout = Layout::horizontal([
+            Constraint::Length(temp_length),
+            Constraint::Min(0),
+        ]).split(left_layout[3]);
+
+        self.temp_widget.render(frame, temp_layout[0]);
+        self.temp_bar.render(frame, temp_layout[1]);
+
         self.network_histogram.render(frame, left_layout[4]);
+        
 
         let right_layout = Layout::vertical([
             Constraint::Min(10),
