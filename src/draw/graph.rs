@@ -7,8 +7,8 @@ use ratatui::{
     layout::Constraint,
 };
 
-use crate::unix::{disk::DiskData, info::OsInfo};
-use crate::unix::info::SystemInfo;
+use crate::data::{disk::DiskData, info::OsInfo};
+use crate::data::info::SystemInfo;
 
 const KB: u64 = 1024;
 const MB: u64 = KB * 1024;

@@ -8,7 +8,7 @@ use ratatui::{
     text::{Line, Span},
 };
 
-use crate::unix::temp::TempData;
+use crate::data::temp::TempData;
 
 pub struct TempWidget {
     temp_data: TempData,

@@ -6,7 +6,7 @@ use ratatui::{
     text::{Line, Span},
 };
 
-use crate::unix::temp::TempData;
+use crate::data::temp::TempData;
 
 pub enum BarColorScheme {
     Green,

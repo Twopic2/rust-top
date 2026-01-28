@@ -14,10 +14,10 @@ use ratatui::{
 };
 
 #[cfg(target_os = "macos")]
-use crate::unix::darwin::cache::CacheMac;
+use crate::data::darwin::cache::CacheMac;
 
-use crate::unix::info::{OsInfo, SystemInfo};
-use crate::unix::disk::DiskData;
+use crate::data::info::{OsInfo, SystemInfo};
+use crate::data::disk::DiskData;
 use crate::draw::graph::{MultiCoreGraph, DiskGraph, ColorScheme};
 use crate::draw::bar::{TotalCoreBar, TempBar, BarColorScheme};
 use crate::draw::histogram::NetworkHistogram;

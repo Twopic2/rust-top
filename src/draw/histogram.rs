@@ -6,7 +6,7 @@ use ratatui::{
     symbols,
     text::Span,
 };
-use crate::unix::network::NetworkHarvester;
+use crate::data::network::NetworkHarvester;
 
 const GIGABYTE: f64 = 1024.0 * 1024.0 * 1024.0;
 const MEGABYTE: f64 = 1024.0 * 1024.0;
