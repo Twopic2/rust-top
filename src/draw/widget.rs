@@ -44,8 +44,7 @@ impl TempWidget {
             }
 
             let mut lines: Vec<Line> = Vec::new();
-            let mut temp_vec: Vec<(&String, &f32)> = total_temp.iter().collect();
-            temp_vec.sort_by(|a, b| a.0.cmp(b.0));
+            let temp_vec: Vec<(&String, &f32)> = total_temp.iter().collect();
 
             let max_lines = area.height.saturating_sub(2) as usize;
 
