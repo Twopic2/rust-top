@@ -2,8 +2,11 @@ use std::{io, time::Duration};
 
 use crossterm::event::EnableMouseCapture;
 use crossterm::execute;
-use crate::event::handle_events;
+use sysinfo::System;
+use crate::{event::handle_events};
 use crate::draw::misc::TickButton;
+use crate::draw::process_tree::ProcessTree;
+use crate::processes::processdata::CollectProcessData;
 use ratatui::{
     DefaultTerminal, Frame,
     layout::{Constraint, Layout},
@@ -36,6 +39,9 @@ pub struct App {
     disk_data: DiskData,
     disk_graph: DiskGraph,
     duration_control: TickButton,
+    process_tree: ProcessTree,
+    process_collector: CollectProcessData,
+    sys: System,
 }
 
 impl App {
@@ -98,6 +104,9 @@ impl App {
         let disk_data = DiskData::new();
         let disk_graph = DiskGraph::new();
         let duration_control = TickButton::new(Duration::from_millis(2000));
+        let process_tree = ProcessTree::new();
+        let process_collector = CollectProcessData::new();
+        let sys = System::new_all();
 
         Self {
             sys_info,
@@ -112,6 +121,9 @@ impl App {
             disk_data,
             disk_graph,
             duration_control,
+            process_tree,
+            process_collector,
+            sys,
         }
     }
 
@@ -286,9 +298,13 @@ impl App {
         
 
         let right_layout = Layout::vertical([
-            Constraint::Min(10),
+            Constraint::Percentage(40),
+            Constraint::Percentage(60),
         ]).split(layout[1]);
 
         self.disk_graph.render(frame, right_layout[0]);
+
+        let processes = self.process_collector.process_data(&mut self.sys);
+        self.process_tree.render(frame, right_layout[1], processes);
     }
 }

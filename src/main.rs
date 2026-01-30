@@ -2,6 +2,7 @@ mod data;
 mod draw;
 mod app;
 mod event;
+mod processes;
 
 use app::App;
 use std::io;
