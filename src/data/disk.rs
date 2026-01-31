@@ -73,7 +73,7 @@ impl DiskData {
             !mount_point.starts_with("/private/var/") &&
             !mount_point.starts_with("/dev") &&
             !name.contains("disk image") &&
-            d.total_space() > 0 // Skip empty volumes
+            d.total_space() > 0 
         })
         .map(|d| (
             d.name().to_string_lossy().to_string(),

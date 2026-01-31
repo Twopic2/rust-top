@@ -26,6 +26,11 @@ impl TempData {
                 temp_map.insert(comp_str, None); 
             }
         }
-        Some(temp_map)
+
+        if temp_map.is_empty() {
+            None
+        } else {
+            Some(temp_map)
+        }
     }
 }

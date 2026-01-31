@@ -3,6 +3,7 @@ use std::{io, time::Duration};
 use crossterm::event::EnableMouseCapture;
 use crossterm::execute;
 use sysinfo::System;
+use crate::data::temp::TempData;
 use crate::{event::handle_events};
 use crate::draw::misc::TickButton;
 use crate::draw::process_tree::ProcessTree;
@@ -35,6 +36,7 @@ pub struct App {
     total_cpu_bar: TotalCoreBar,
     temp_widget: TempWidget,
     temp_bar: TempBar,
+    temp_data: TempData,
     network_histogram: NetworkHistogram,
     disk_data: DiskData,
     disk_graph: DiskGraph,
@@ -55,6 +57,8 @@ impl App {
         } else {
             Vec::new()
         };
+
+        let temp_data = TempData::new();
 
         #[cfg(target_os = "macos")]
         let cache_levels = CacheMac::cache_levels();          
@@ -117,6 +121,7 @@ impl App {
             total_cpu_bar,
             temp_widget,
             temp_bar,
+            temp_data,
             network_histogram,
             disk_data,
             disk_graph,
@@ -203,7 +208,12 @@ impl App {
         let num_rows = (num_cores + cores_per_row - 1) / cores_per_row;
         let cpu_cores_height = (num_rows + 2).max(5) as u16;
         let cpu_info_height = (self.cpu_model_lines.len().max(self.cpu_cache_lines.len()).max(2) + 2) as u16;
-        let temp_widget_height = self.temp_widget.get_height();
+
+        let temp_widget_height = if self.temp_data.get_all_temps().is_some() {
+            self.temp_widget.get_height()
+        } else {
+            0
+        };
 
         let left_layout = Layout::vertical([
             Constraint::Length(cpu_info_height),
@@ -282,24 +292,25 @@ impl App {
             mem_area
         );
 
+        if self.temp_data.get_all_temps().is_some() {
+            let temp_length = self.temp_widget.get_length();
+            let temp_layout = Layout::horizontal([
+                Constraint::Length(temp_length),
+                Constraint::Min(0),
+            ]).split(left_layout[3]);
+            self.temp_widget.render(frame, temp_layout[0]);
+            self.temp_bar.render(frame, temp_layout[1]);
+        } 
+
         self.core_graph.render(frame, left_layout[1]);
         self.total_cpu_bar.render(frame, left_layout[2]);
 
-        let temp_length = self.temp_widget.get_length();
-        let temp_layout = Layout::horizontal([
-            Constraint::Length(temp_length),
-            Constraint::Min(0),
-        ]).split(left_layout[3]);
-
-        self.temp_widget.render(frame, temp_layout[0]);
-        self.temp_bar.render(frame, temp_layout[1]);
-
         self.network_histogram.render(frame, left_layout[4]);
         
-
+        let disk_height = self.disk_graph.get_height();
         let right_layout = Layout::vertical([
-            Constraint::Percentage(40),
-            Constraint::Percentage(60),
+            Constraint::Length(disk_height),
+            Constraint::Min(10),
         ]).split(layout[1]);
 
         self.disk_graph.render(frame, right_layout[0]);

@@ -112,6 +112,6 @@ impl TempWidget {
 
             let paragraph = Paragraph::new(lines).block(block);
             frame.render_widget(paragraph, area);
-        }
+        } 
     }
 }

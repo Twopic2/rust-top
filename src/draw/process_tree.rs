@@ -62,8 +62,7 @@ impl ProcessTree {
         let top_processes = self.get_sorted_processes(processes);
 
         let header = format!(
-            "{:>3}  {:>7} {:>7} {:>7} {:>7} {:>7}",
-            "#",
+            "{:>7} {:>7} {:>7} {:>15} {}",
             ProcessColumn::display_header(ProcessColumn::Pid),
             ProcessColumn::display_header(ProcessColumn::CpuUsage),
             ProcessColumn::display_header(ProcessColumn::MemUsage),
@@ -77,11 +76,9 @@ impl ProcessTree {
 
         let data_items: Vec<ListItem> = top_processes
             .iter()
-            .enumerate()
-            .map(|(i, p)| {
+            .map(|p| {
                 let line = format!(
-                    "{:>3}. {:>7} {:>6.1}% {:>6.1}% {:>15} {}",
-                    i + 1,
+                    "{:>7} {:>6.1}% {:>6.1}% {:>15} {}",
                     p.pid,
                     p.cpu_usage_percent,
                     p.mem_usage_percent,

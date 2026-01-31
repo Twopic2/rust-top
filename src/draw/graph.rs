@@ -224,6 +224,10 @@ impl DiskGraph {
         }
     }
 
+    pub fn get_height(&self) -> u16 {
+        (self.entries.len() as u16 + 1 + 2).max(4)
+    }
+
     pub fn update(&mut self, disk_data: &mut DiskData) {
         disk_data.collect_all();
 
