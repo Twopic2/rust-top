@@ -96,34 +96,32 @@ impl TotalCoreBar {
     }
 }
 
+// Temp bar lists out the proper temps in f32. 
 pub struct TempBar {
-    temp_data: TempData,
     color_scheme: BarColorScheme,
     cpu_temp: Option<f32>,
     disk_temp: Option<f32>,
+    nic_temp: Option<f32>,
 }
 
 impl TempBar {
     pub fn new(color_scheme: BarColorScheme) -> Self {
         Self {
-            temp_data: TempData::new(),
             color_scheme,
             cpu_temp: None,
             disk_temp: None,
+            nic_temp: None,
         }
     }
 
     pub fn update(&mut self) {
-        self.cpu_temp = None;
-        self.disk_temp = None;
-
-        if let Some(all_temps) = self.temp_data.get_all_temps() {
+        #[cfg(target_os = "macos")]
+        if let Some(all_temps) = TempData::all_temps() {
             let mut has_cpu = false;
             let mut has_disk = false;
 
             for (label, temp_opt) in all_temps {
                 if let Some(temp) = temp_opt {
-                    /* For macOS */
                     if !has_cpu && label.contains("tdie") {
                         self.cpu_temp = Some(temp);
                         has_cpu = true;
@@ -131,7 +129,21 @@ impl TempBar {
                         self.disk_temp = Some(temp);
                         has_disk = true;
                     }
-                    /* For Unix*/
+                }
+            }
+        }
+
+        #[cfg(target_os = "linux")]
+        if let Some(all_temps) = TempData::all_temps() {
+            for (label, temp_out) in all_temps {
+                if let Some(temp) = temp_out {
+                    if label.contains("coretemp") || label.contains("Package id") || label.contains("k10temp") || label.contains("Tdie") {
+                        self.cpu_temp = Some(temp);
+                    } else if label.contains("nvme") {
+                        self.disk_temp = Some(temp);
+                    } else if label.contains("iwlwifi") {
+                        self.nic_temp = Some(temp);
+                    }
                 }
             }
         }
@@ -187,6 +199,33 @@ impl TempBar {
 
             spans.push(Span::styled(
                 format!("Disk: {:>4.1}°C ", disk_temp),
+                Style::default().fg(color).add_modifier(Modifier::BOLD)
+            ));
+
+            let bar_width = (inner_area.width as usize / 2).saturating_sub(15);
+            let filled = ((temp_percentage / 100.0) * bar_width as f32) as usize;
+            let empty = bar_width.saturating_sub(filled);
+
+            if filled > 0 {
+                spans.push(Span::styled(
+                    "█".repeat(filled),
+                    Style::default().fg(color)
+                ));
+            }
+            if empty > 0 {
+                spans.push(Span::styled(
+                    "░".repeat(empty),
+                    Style::default().fg(Color::DarkGray)
+                ));
+            }
+        }
+
+        if let Some(nic_temp) = self.nic_temp {
+            let temp_percentage = (nic_temp / 100.0 * 100.0).min(100.0).max(0.0);
+            let color = self.color_scheme.get_color(temp_percentage as f64);
+
+            spans.push(Span::styled(
+                format!("Nic: {:>4.1}°C ", nic_temp),
                 Style::default().fg(color).add_modifier(Modifier::BOLD)
             ));
 

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use sysinfo::{System};
 
 #[derive(Clone, Debug)]
@@ -8,7 +10,7 @@ pub struct CollectProcessData {
     pub mem_usage_percent: f32,
     pub cpu_usage_percent: f32,
     pub uid: Option<libc::uid_t>,
-    pub user: &'static str
+    pub user: &'static str,
 }
 
 impl CollectProcessData {

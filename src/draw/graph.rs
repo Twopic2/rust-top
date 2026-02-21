@@ -7,6 +7,7 @@ use ratatui::{
     layout::Constraint,
 };
 
+use sysinfo::System;
 use crate::data::{disk::DiskData, info::OsInfo};
 use crate::data::info::SystemInfo;
 
@@ -74,17 +75,13 @@ impl ColorScheme {
 pub struct MultiCoreGraph {
     cores: Vec<Vec<f64>>,
     color_scheme: ColorScheme,
-    sys_info: SystemInfo,
 }
 
 impl MultiCoreGraph {
     pub fn new(num_cores: usize, color_scheme: ColorScheme) -> Self {
-        let sys_info = SystemInfo::new();
-
         Self {
             cores: vec![Vec::new(); num_cores],
             color_scheme,
-            sys_info,
         }
     }
 
@@ -103,8 +100,8 @@ impl MultiCoreGraph {
         }
     }
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
-        let cpu_freq = self.sys_info.display_cpu_frequency().unwrap_or_else(|| 0);
+    pub fn render(&mut self, frame: &mut Frame, area: Rect, sys: &mut System) {
+        let cpu_freq = SystemInfo::display_cpu_frequency(sys).unwrap_or(0);
         let cpu_freq = format!("{:.2} GHz", cpu_freq as f64 / 1000.0);
 
         let block = Block::default()
@@ -217,10 +214,9 @@ pub struct DiskGraph {
 
 impl DiskGraph {
     pub fn new() -> Self {
-        let sys_info = SystemInfo::new();
         Self {
             entries: Vec::new(),
-            sys_info,
+            sys_info: SystemInfo,
         }
     }
 

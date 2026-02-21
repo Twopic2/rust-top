@@ -34,9 +34,8 @@ pub struct App {
     mem_lines: Vec<Line<'static>>,
     core_graph: MultiCoreGraph,
     total_cpu_bar: TotalCoreBar,
-    temp_widget: TempWidget,
     temp_bar: TempBar,
-    temp_data: TempData,
+    temp_widget: TempWidget,
     network_histogram: NetworkHistogram,
     disk_data: DiskData,
     disk_graph: DiskGraph,
@@ -48,9 +47,10 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
-        let sys_info = SystemInfo::new();
+        let mut sys = System::new_all();
+        let sys_info = SystemInfo;
 
-        let cpu_model_lines = if let Some(cpu_model) = sys_info.display_cpu_model() {
+        let cpu_model_lines = if let Some(cpu_model) = SystemInfo::display_cpu_model(&mut sys) {
             cpu_model.into_iter()
                 .map(|(key, value)| Line::from(format!("{}: {}", key, value)))
                 .collect()
@@ -58,10 +58,8 @@ impl App {
             Vec::new()
         };
 
-        let temp_data = TempData::new();
-
         #[cfg(target_os = "macos")]
-        let cache_levels = CacheMac::cache_levels();          
+        let cache_levels = CacheMac::cache_levels();
 
         #[cfg(target_os = "macos")]
         let cpu_cache_lines: Vec<Line<'static>> = if !cache_levels.is_empty() {
@@ -84,7 +82,7 @@ impl App {
         };
 
         #[cfg(not(target_os = "macos"))]
-        let cpu_cache_lines = if let Some(cpu_cache) = sys_info.display_cpu_cache() {
+        let cpu_cache_lines = if let Some(cpu_cache) = SystemInfo::display_cpu_cache() {
             let cache_str = cpu_cache.into_iter()
                 .map(|(key, value)| format!("{}: {}", key, value))
                 .collect::<Vec<_>>()
@@ -94,15 +92,14 @@ impl App {
             vec![Line::from("Cache info not available")]
         };
 
-        let memory_info = sys_info.display_memory();
+        let memory_info = SystemInfo::display_memory(&mut sys);
         let mem_lines: Vec<Line<'static>> = memory_info.iter()
             .map(|s| Line::from(s.clone()))
             .collect();
 
-        let num_cores = sys_info.num_cores();
+        let num_cores = SystemInfo::num_cores(&mut sys);
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
         let total_cpu_bar = TotalCoreBar::new(BarColorScheme::Green);
-        let temp_widget = TempWidget::new();
         let temp_bar = TempBar::new(BarColorScheme::Green);
         let network_histogram = NetworkHistogram::new(60);
         let disk_data = DiskData::new();
@@ -110,7 +107,9 @@ impl App {
         let duration_control = TickButton::new(Duration::from_millis(2000));
         let process_tree = ProcessTree::new();
         let process_collector = CollectProcessData::new();
-        let sys = System::new_all();
+
+        let mut temp_widget = TempWidget::new();
+        temp_widget.filter();
 
         Self {
             sys_info,
@@ -119,9 +118,8 @@ impl App {
             mem_lines,
             core_graph,
             total_cpu_bar,
-            temp_widget,
             temp_bar,
-            temp_data,
+            temp_widget,
             network_histogram,
             disk_data,
             disk_graph,
@@ -136,9 +134,9 @@ impl App {
         execute!(io::stdout(), EnableMouseCapture)?;
 
         loop {
-            self.sys_info.set_refresh_timer();
+            SystemInfo::set_refresh_timer(&mut self.sys);
 
-            let core_usages = self.sys_info.get_core_usages();
+            let core_usages = SystemInfo::get_core_usages(&mut self.sys);
 
             for (i, usage) in core_usages.iter().enumerate() {
                 self.core_graph.push(i, *usage);
@@ -152,7 +150,7 @@ impl App {
             self.disk_data.refresh();
             self.disk_graph.update(&mut self.disk_data);
 
-            let memory_info = self.sys_info.display_memory();
+            let memory_info = SystemInfo::display_memory(&mut self.sys);
             self.mem_lines = memory_info.iter()
                 .map(|s| Line::from(s.clone()))
                 .collect();
@@ -200,7 +198,7 @@ impl App {
             Constraint::Percentage(50),
         ]).split(inner_area);
 
-        let num_cores = self.sys_info.num_cores();
+        let num_cores = SystemInfo::num_cores(&mut self.sys);
         let left_width = layout[0].width.saturating_sub(2) as usize;
         let label_width = 10;
         let min_bar_width = 10;
@@ -209,7 +207,7 @@ impl App {
         let cpu_cores_height = (num_rows + 2).max(5) as u16;
         let cpu_info_height = (self.cpu_model_lines.len().max(self.cpu_cache_lines.len()).max(2) + 2) as u16;
 
-        let temp_widget_height = if self.temp_data.get_all_temps().is_some() {
+        let temp_widget_height = if TempData::all_temps().is_some() {
             self.temp_widget.get_height()
         } else {
             0
@@ -225,7 +223,7 @@ impl App {
 
         let mut cpu_lines: Vec<Line> = Vec::new();
 
-        let cpu_cores = self.sys_info.display_cores()
+        let cpu_cores = SystemInfo::display_cores(&mut self.sys)
             .unwrap_or_else(|| vec![String::from("No CPU data available")]);
 
         for core in cpu_cores {
@@ -292,7 +290,7 @@ impl App {
             mem_area
         );
 
-        if self.temp_data.get_all_temps().is_some() {
+        if TempData::all_temps().is_some() {
             let temp_length = self.temp_widget.get_length();
             let temp_layout = Layout::horizontal([
                 Constraint::Length(temp_length),
@@ -300,9 +298,9 @@ impl App {
             ]).split(left_layout[3]);
             self.temp_widget.render(frame, temp_layout[0]);
             self.temp_bar.render(frame, temp_layout[1]);
-        } 
+        }
 
-        self.core_graph.render(frame, left_layout[1]);
+        self.core_graph.render(frame, left_layout[1], &mut self.sys);
         self.total_cpu_bar.render(frame, left_layout[2]);
 
         self.network_histogram.render(frame, left_layout[4]);
