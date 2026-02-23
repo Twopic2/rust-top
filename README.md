@@ -42,12 +42,6 @@ sudo sensors-detect
 
 **WSL:** No additional dependencies.
 
-## Keybindings
-
-| Key | Action |
-|-----|--------|
-| `Q` / `Esc` | Quit |
-
 ## Layout
 
 <img width="3727" height="1918" alt="Screenshot_20260222_225826" src="https://github.com/user-attachments/assets/340abb8f-67b6-46ff-a696-c3adb0672a93" />
