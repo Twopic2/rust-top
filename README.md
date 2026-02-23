@@ -50,7 +50,7 @@ sudo sensors-detect
 
 ## Layout
 
-
+<img width="3727" height="1918" alt="Screenshot_20260222_225826" src="https://github.com/user-attachments/assets/340abb8f-67b6-46ff-a696-c3adb0672a93" />
 
 ## Dependencies
 
