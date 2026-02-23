@@ -26,8 +26,6 @@ impl CollectProcessData {
         }
     }
     pub fn process_data(&mut self, sys: &mut System) -> Vec<CollectProcessData> {
-        sys.refresh_all();
-
         let mut process_data_vec: Vec<CollectProcessData> = Vec::new();
         let processes = sys.processes();
 
@@ -43,12 +41,14 @@ impl CollectProcessData {
                 command: commands,
                 program: process.name().to_string_lossy().to_string(),
                 mem_usage_percent: (process.memory() as f32 / sys.total_memory() as f32) * 100.0,
-                cpu_usage_percent:  process.cpu_usage(),
+                cpu_usage_percent:  process.cpu_usage() / sys.cpus().len() as f32,
                 uid: user_id,
                 user: user_,
             };
 
-            process_data_vec.push(data);
+            if data.cpu_usage_percent > 0.0 || data.mem_usage_percent > 0.0 {
+                process_data_vec.push(data);
+            }
         }
 
         process_data_vec

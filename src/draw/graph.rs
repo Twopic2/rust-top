@@ -224,8 +224,8 @@ impl DiskGraph {
         (self.entries.len() as u16 + 1 + 2).max(4)
     }
 
-    pub fn update(&mut self, disk_data: &mut DiskData) {
-        disk_data.collect_all();
+    pub fn update(&mut self, disk_data: &mut DiskData, sys: &mut System) {
+        disk_data.collect_all(sys);
 
         self.entries.clear();
         for i in 0..disk_data.len() {

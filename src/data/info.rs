@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 #[cfg(not(target_os = "macos"))]
 use cache_size::{l1_cache_size, l2_cache_size, l3_cache_size};
-use sysinfo::System;
+use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
 
 #[cfg(not(target_os = "macos"))]
 use std::process::Command;
@@ -136,6 +136,11 @@ impl SystemInfo {
         sys.refresh_cpu_usage();
         sys.refresh_cpu_frequency();
         sys.refresh_memory();
+        sys.refresh_processes_specifics(
+            ProcessesToUpdate::All,
+            true,
+            ProcessRefreshKind::nothing().with_cpu(),
+        );
     }
 
     pub fn get_core_usages(sys: &mut System) -> Vec<f64> {

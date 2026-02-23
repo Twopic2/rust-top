@@ -5,7 +5,6 @@ https://github.com/ClementTsang/bottom
 */
 #[derive(Debug)]
 pub struct DiskData {
-    sys: System,
     disks: Disks,
     disk_name: Vec<String>,
     filesytem: Vec<String>,
@@ -18,10 +17,8 @@ pub struct DiskData {
 
 impl DiskData {
     pub fn new() -> Self {
-        let sys = System::new_all();
         let disks = Disks::new_with_refreshed_list();
         Self {
-            sys,
             disks,
             disk_name: Vec::new(),
             filesytem: Vec::new(),
@@ -33,36 +30,36 @@ impl DiskData {
         }
     }
 
-    pub fn refresh(&mut self) {
+    pub fn refresh(&mut self, sys: &mut System) {
         #[cfg(not(target_os = "macos"))]
         self.disks.refresh(true);
 
-        self.sys.refresh_processes(sysinfo::ProcessesToUpdate::All, false);
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, false);
     }
     
-    fn get_total_io_read(&self) -> u64 {
+    fn get_total_io_read(&self, sys: &mut System) -> u64 {
         #[cfg(target_os = "macos")]
         return 0;
 
         #[cfg(not(target_os = "macos"))]
-        self.sys.processes()
+        sys.processes()
             .values()
             .map(|p| p.disk_usage().read_bytes)
             .sum()
     }
 
-    fn get_total_io_write(&self) -> u64 {
+    fn get_total_io_write(&self, sys: &mut System) -> u64 {
         #[cfg(target_os = "macos")]
         return 0;
 
         #[cfg(not(target_os = "macos"))]
-        self.sys.processes()
+        sys.processes()
             .values()
             .map(|p| p.disk_usage().written_bytes)
             .sum()
     }
 
-    pub fn collect_all(&mut self) {
+    pub fn collect_all(&mut self, sys: &mut System) {
         #[cfg(target_os = "macos")]
         let mut disks_data: Vec<_> = self.disks.list().iter()
         .filter(|d| {
@@ -102,8 +99,8 @@ impl DiskData {
         self.total = disks_data.iter().map(|d| d.3).collect();
         self.available = disks_data.iter().map(|d| d.4).collect();
 
-        let total_read = self.get_total_io_read();
-        let total_write = self.get_total_io_write();
+        let total_read = self.get_total_io_read(sys);
+        let total_write = self.get_total_io_write(sys);
 
         self.curr_read = vec![total_read; disks_data.len()];
         self.curr_write = vec![total_write; disks_data.len()];

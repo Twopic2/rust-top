@@ -147,8 +147,8 @@ impl App {
 
             self.network_histogram.update();
 
-            self.disk_data.refresh();
-            self.disk_graph.update(&mut self.disk_data);
+            self.disk_data.refresh(&mut self.sys);
+            self.disk_graph.update(&mut self.disk_data, &mut self.sys);
 
             let memory_info = SystemInfo::display_memory(&mut self.sys);
             self.mem_lines = memory_info.iter()
