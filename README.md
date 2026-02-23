@@ -40,62 +40,17 @@ sudo sensors-detect
 
 **macOS:** No additional dependencies.
 
-## Build & Run
-
-```sh
-git clone https://github.com/yourname/rust-top
-cd rust-top
-cargo run --release
-```
+**WSL:** No additional dependencies.
 
 ## Keybindings
 
 | Key | Action |
 |-----|--------|
 | `Q` / `Esc` | Quit |
-| `+` / `=` | Increase refresh rate (faster) |
-| `-` / `_` | Decrease refresh rate (slower) |
-| Mouse click | Adjust refresh rate via on-screen button |
 
 ## Layout
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      rust-top  [hostname]                       │
-├────────────────────────────┬────────────────────────────────────┤
-│ CPU Model │ Cache │ Memory │ Disk usage / I/O table             │
-├────────────────────────────┤                                    │
-│ Per-core CPU graphs        ├────────────────────────────────────┤
-├────────────────────────────┤ Process list (sorted by CPU%)      │
-│ Total CPU bar              │                                    │
-├────────────────────────────│                                    │
-│ Temperatures │ Temp bars   │                                    │
-├────────────────────────────│                                    │
-│ Network RX/TX histogram    │                                    │
-└────────────────────────────┴────────────────────────────────────┘
-```
 
-## Project Structure
-
-```
-src/
-├── main.rs                  # Entry point, terminal init
-├── app.rs                   # App state, main loop, layout
-├── event.rs                 # Input handling
-├── data/
-│   ├── info.rs              # CPU, memory, kernel info
-│   ├── temp.rs              # Temperature sensors (platform-specific)
-│   ├── disk.rs              # Disk usage and I/O
-│   ├── network.rs           # Network RX/TX
-│   └── darwin/cache.rs      # macOS CPU cache via sysctl
-└── draw/
-    ├── bar.rs               # CPU and temperature bars
-    ├── graph.rs             # Multi-core graphs, disk table
-    ├── histogram.rs         # Network activity chart
-    ├── widget.rs            # Temperature sensor widget
-    ├── misc.rs              # Tick rate button
-    └── process_tree.rs      # Process list renderer
-```
 
 ## Dependencies
 
