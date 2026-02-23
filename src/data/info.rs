@@ -4,6 +4,9 @@ use cache_size::{l1_cache_size, l2_cache_size, l3_cache_size};
 use sysinfo::System;
 
 #[cfg(not(target_os = "macos"))]
+use std::process::Command;
+
+#[cfg(not(target_os = "macos"))]
 const KILOBYTE: usize = 1024;
 #[cfg(not(target_os = "macos"))]
 const MEGABYTE: usize = 10000;
@@ -54,6 +57,31 @@ impl SystemInfo {
     }
 
     #[cfg(not(target_os = "macos"))]
+    fn lscpu_l3_cache() -> Option<String> {
+        let output = Command::new("lscpu").output().ok()?;
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        for line in stdout.lines() {
+            if line.starts_with("L3 cache:") {
+                let size = line
+                    .split(':')
+                    .nth(1)?
+                    .trim()
+                    .split_whitespace()
+                    .take(2)            
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                if !size.is_empty() {
+                    return Some(size);
+                }
+            }
+        }
+
+        None
+    }
+
+    #[cfg(not(target_os = "macos"))]
     pub fn display_cpu_cache() -> Option<HashMap<&'static str, String>> {
         let mut cache_info = HashMap::new();
 
@@ -64,9 +92,9 @@ impl SystemInfo {
         if let Some(size) = l2_cache_size() {
             cache_info.insert("L2", format!("{} KB", size / KILOBYTE));
         }
-
-        if let Some(size) = l3_cache_size() {
-            cache_info.insert("L3", format!("{} MB", size / MEGABYTE));
+        
+        if let Some(size) = Self::lscpu_l3_cache() {
+            cache_info.insert("L3", size);
         }
 
         if cache_info.is_empty() {
