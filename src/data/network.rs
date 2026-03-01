@@ -1,5 +1,7 @@
 use sysinfo::Networks;
 use local_ip_address::local_ip;
+
+#[derive(Default)]
 pub struct NetworkHarvester {
     curr_rx: u64,
     curr_tx: u64,
@@ -9,17 +11,6 @@ pub struct NetworkHarvester {
 }
 
 impl NetworkHarvester {
-    pub fn init() -> Self {
-        let network = Networks::new_with_refreshed_list();                  
-        Self {
-            curr_rx: 0,
-            curr_tx: 0,
-            total_rx: 0,
-            total_tx: 0,
-            network,
-        }
-    }
-
     pub fn get_curr_network_data(&mut self) -> Vec<u64> {
         self.network.refresh(true);
 

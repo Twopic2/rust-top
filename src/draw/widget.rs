@@ -11,6 +11,8 @@ use crate::data::temp::TempData;
 /* 
 TempWidget just lists the names of each component whether thats cpus/gpus/ram/disk/nics 
 */
+
+#[derive(Default)]
 pub struct TempWidget {
     cpu_name:   Option<String>,
     disk_name:  Option<String>,
@@ -19,15 +21,6 @@ pub struct TempWidget {
 }
 
 impl TempWidget {
-    pub fn new() -> Self {
-        Self {
-            cpu_name: None,
-            disk_name: None,
-            nic_name: None,
-            line_count: 0,
-        }
-    }
-
     pub fn filter(&mut self) {
         #[cfg(target_os = "macos")]
         if let Some(all_temps) = TempData::all_temps() {

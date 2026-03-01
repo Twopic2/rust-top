@@ -1,10 +1,12 @@
 use crate::processes::processdata::CollectProcessData;
 use std::collections::BTreeMap;
 use std::cmp::Ordering;
+use sysinfo::System;
 use ratatui::{
     Frame,
     style::{Color, Style, Modifier},
-    widgets::{Block, Borders, List, ListItem},
+    text::Line,
+    widgets::{Block, Borders, List, ListItem, Paragraph},
     layout::Rect,
 };
 
@@ -29,22 +31,79 @@ impl ProcessColumn {
     } 
 }
 
-#[derive(Clone, Copy)]
 pub enum SortOrder {
     Descending,
 }
 
-pub struct ProcessTree {
-    sort_column: ProcessColumn,
-    sort_order: SortOrder,
+#[derive(PartialEq)]
+pub enum SearchState {
+    NoSearch,
+    Searching,
+    ClearSearch,
 }
 
-impl ProcessTree {
+// ToDo: Make make searchstate better
+// impl SearchState {}
+
+pub struct ProcessWidget {
+    sort_column: ProcessColumn,
+    sort_order: SortOrder,
+    pub search_state: SearchState,
+    pub search_input: String,
+    collector: CollectProcessData,
+    proc_table: Vec<CollectProcessData>,
+    pub filtered_table: Vec<CollectProcessData>,
+}
+
+// pub enum TopCommands{
+//     Kill,
+//     Signals,
+//     Terminate,
+//     TreeMode, 
+// }
+//
+// impl TopCommands {}
+
+impl ProcessWidget {
     pub fn new() -> Self {
         Self {
             sort_column: ProcessColumn::CpuUsage,
             sort_order: SortOrder::Descending,
+            search_state: SearchState::NoSearch,
+            search_input: String::new(),
+            collector: CollectProcessData::default(),
+            proc_table: Vec::new(),
+            filtered_table: Vec::new(),
         }
+    }
+
+    pub fn refresh(&mut self, sys: &mut System) {
+        self.proc_table = self.collector.process_data(sys);
+        if self.is_searching() {
+            self.apply_filter();
+        }
+    }
+
+    // Todo: Got to add a close searching 
+    pub fn is_searching(&self) -> bool {
+        self.search_state == SearchState::Searching
+    }
+
+    // pub fn is_clear_searching(&self) -> bool {
+    //     self.search_state == SearchState::ClearSearch
+    // }
+
+    pub fn apply_filter(&mut self) {
+        let query = self.search_input.to_lowercase();
+        self.filtered_table = self.proc_table.iter()
+            .filter(|p| {
+                p.program.to_lowercase().starts_with(&query)
+                    || p.command.to_lowercase().starts_with(&query)
+            })
+            .cloned()
+            .collect();
+
+        self.proc_table.clear();
     }
 
     pub fn get_sorted_processes(&self, processes: Vec<CollectProcessData>) -> Vec<CollectProcessData> {
@@ -58,8 +117,38 @@ impl ProcessTree {
         indexed_processes.into_values().collect()
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect, processes: Vec<CollectProcessData>) {
-        let top_processes = self.get_sorted_processes(processes);
+    fn create_filter_bar(&self, frame: &mut Frame, area: Rect) {
+        let filter_width = 30u16.min(area.width);
+        let filter_area = Rect {
+            x: area.x + area.width.saturating_sub(filter_width),
+            y: area.y,
+            width: filter_width,
+            height: 3,
+        };
+        let search_text = format!("/{}", self.search_input);
+        let search_box = Paragraph::new(Line::from(search_text))
+            .block(
+                Block::new()
+                    .borders(Borders::ALL)
+                    .title("Filter")
+                    .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            )
+            .style(Style::default().fg(Color::White).bold());
+        frame.render_widget(search_box, filter_area);
+    }
+
+    pub fn render(&self, frame: &mut Frame, area: Rect) {
+        let source = if self.is_searching() {
+            &self.filtered_table
+        } else {
+            &self.proc_table
+        };
+
+        if self.is_searching() {
+            self.create_filter_bar(frame, area);
+        }
+
+        let top_processes = self.get_sorted_processes(source.clone());
 
         let header = format!(
             "{:>7} {:>7} {:>7} {:>15} {}",
@@ -91,13 +180,11 @@ impl ProcessTree {
 
         process_items.extend(data_items);
 
-        let title = format!("Processes");
-
         let process_list = List::new(process_items)
             .block(
                 Block::new()
                     .borders(Borders::ALL)
-                    .title(title)
+                    .title("Processes")
                     .title_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
             )
             .style(Style::default().fg(Color::White));

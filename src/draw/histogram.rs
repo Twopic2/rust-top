@@ -12,6 +12,7 @@ const GIGABYTE: f64 = 1024.0 * 1024.0 * 1024.0;
 const MEGABYTE: f64 = 1024.0 * 1024.0;
 const KILOBYTE: f64 = 1024.0;
 
+
 pub struct NetworkHistogram {
     rx_history: Vec<(f64, f64)>,
     tx_history: Vec<(f64, f64)>,
@@ -30,7 +31,7 @@ impl NetworkHistogram {
             total_rx: 0,
             total_tx: 0,
             max_points,
-            harvester: NetworkHarvester::init(),
+            harvester: NetworkHarvester::default(),
             tick: 0.0,
         }
     }

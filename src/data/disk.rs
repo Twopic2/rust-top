@@ -3,7 +3,7 @@ use sysinfo::{Disks, System};
 /* implamentation inspired by Bottom
 https://github.com/ClementTsang/bottom
 */
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct DiskData {
     disks: Disks,
     disk_name: Vec<String>,
@@ -16,20 +16,6 @@ pub struct DiskData {
 }
 
 impl DiskData {
-    pub fn new() -> Self {
-        let disks = Disks::new_with_refreshed_list();
-        Self {
-            disks,
-            disk_name: Vec::new(),
-            filesytem: Vec::new(),
-            mount: Vec::new(),
-            total: Vec::new(),
-            available: Vec::new(),
-            curr_read: Vec::new(),
-            curr_write: Vec::new(),
-        }
-    }
-
     pub fn refresh(&mut self, sys: &mut System) {
         #[cfg(not(target_os = "macos"))]
         self.disks.refresh(true);

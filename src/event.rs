@@ -2,6 +2,7 @@ use std::io;
 use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent};
 use crate::draw::misc::{TickButton, TickCounter};
+use crate::draw::process_tree::{ProcessWidget, SearchState};
 
 #[derive(Debug)]
 pub enum TopEvent {
@@ -34,10 +35,34 @@ fn mouse_ticker_click(event: MouseEvent, tick_button: &mut TickButton) {
     }
 }
 
-fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton) -> bool {
+fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget: &mut ProcessWidget) -> bool {
+    if process_widget.is_searching() {
+        match event.code {
+            KeyCode::Esc => {
+                process_widget.search_state = SearchState::ClearSearch;
+                process_widget.search_input.clear();
+                process_widget.filtered_table.clear();
+                process_widget.search_state = SearchState::NoSearch;
+            }
+            KeyCode::Backspace => {
+                process_widget.search_input.pop();
+                process_widget.apply_filter();
+            }
+            KeyCode::Char(c) => {
+                process_widget.search_input.push(c);
+                process_widget.apply_filter();
+            }
+            _ => {}
+        }
+        return false;
+    }
+
     match event.code {
-        KeyCode::Char('q') | KeyCode::Esc => {
-            true
+        KeyCode::Char('q') | KeyCode::Esc => true,
+        KeyCode::Char('/') => {
+            process_widget.search_state = SearchState::Searching;
+            process_widget.search_input.clear();
+            false
         }
         KeyCode::Char('+') | KeyCode::Char('=') => {
             tick_button.increment();
@@ -47,11 +72,11 @@ fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton) -> bool {
             tick_button.decrement();
             false
         }
-        _ => false
+        _ => false,
     }
 }
 
-pub fn handle_events(tick_button: &mut TickButton) -> io::Result<bool> {
+pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessWidget) -> io::Result<bool> {
     let tick_rate = tick_button.get_duration();
     let deadline = Instant::now() + tick_rate;
 
@@ -64,7 +89,7 @@ pub fn handle_events(tick_button: &mut TickButton) -> io::Result<bool> {
         if let Some(event) = poll_event(remaining)? {
             match event {
                 TopEvent::KeyInput(key) => {
-                    if keystroke_type(key, tick_button) {
+                    if keystroke_type(key, tick_button, process_widget) {
                         return Ok(true);
                     }
                 }
