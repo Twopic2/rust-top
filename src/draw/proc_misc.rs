@@ -4,6 +4,8 @@
 use signal_hook::iterator::{SignalsInfo, exfiltrator::SignalOnly};
 use sysinfo::Pid;
 
+use crate::processes::processdata::CollectProcessData;
+
 pub type Signals = SignalsInfo<SignalOnly>;
 
 /// TODO: Right now we don't need to add Treemode but treemode might help visualize Process parent-child.
@@ -45,14 +47,16 @@ impl ProcessButton {
     }
 
     pub fn signal_process(&mut self, process_button: ProcessButton) {
-
+        
     }
 
     pub fn render() {
         
     }
 
-    fn selected_proc() {}
+    fn selected_proc(&mut self, process: Vec<CollectProcessData>) {
+
+    }
 
     fn kill_proc(pid: Pid, ) {}
 
