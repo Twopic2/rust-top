@@ -1,7 +1,7 @@
 use std::io;
 use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent};
-use crate::draw::misc::{TickButton, TickCounter};
+use crate::draw::ticker::{TickButton, TickCounter};
 use crate::draw::process_tree::{ProcessWidget, SearchState};
 
 #[derive(Debug)]

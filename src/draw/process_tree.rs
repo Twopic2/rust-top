@@ -55,15 +55,6 @@ pub struct ProcessWidget {
     pub filtered_table: Vec<CollectProcessData>,
 }
 
-// pub enum TopCommands{
-//     Kill,
-//     Signals,
-//     Terminate,
-//     TreeMode, 
-// }
-//
-// impl TopCommands {}
-
 impl ProcessWidget {
     pub fn new() -> Self {
         Self {
@@ -104,6 +95,11 @@ impl ProcessWidget {
             .collect();
 
         self.proc_table.clear();
+    }
+
+    // Signals to proc_misc to get seletect proc
+    pub fn get_seletect_process(&self, proc: u32) -> Option<u32> {
+        self.proc_table.iter().find(|p| p.pid == proc).map(|p| p.pid)
     }
 
     pub fn get_sorted_processes(&self, processes: Vec<CollectProcessData>) -> Vec<CollectProcessData> {

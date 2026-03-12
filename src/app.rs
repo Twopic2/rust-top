@@ -5,7 +5,7 @@ use crossterm::execute;
 use sysinfo::System;
 use crate::data::temp::TempData;
 use crate::{event::handle_events};
-use crate::draw::misc::TickButton;
+use crate::draw::ticker::TickButton;
 use crate::draw::process_tree::ProcessWidget;
 use ratatui::{
     DefaultTerminal,
