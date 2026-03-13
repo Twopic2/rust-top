@@ -9,6 +9,8 @@ use crate::processes::processdata::CollectProcessData;
 pub type Signals = SignalsInfo<SignalOnly>;
 
 /// TODO: Right now we don't need to add Treemode but treemode might help visualize Process parent-child.
+
+#[derive(PartialEq)]
 enum ProcessCommands{
     Select,
     Kill,
@@ -27,26 +29,23 @@ impl ProcessCommands {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum State {
-    Unselected,
-    Selected,
-}
-
 struct ProcessButton {
-    state: State, 
-    label: ProcessCommands,
+    command: ProcessCommands,
 }
 
 impl ProcessButton {
     pub fn new() -> Self {
         ProcessButton {
-            state: State::Unselected,
-            label: ProcessCommands::Select,
+            command: ProcessCommands::Select,
         }
     }
 
-    pub fn signal_process(&mut self, process_button: ProcessButton) {
+    pub fn signal_process(&mut self, process_button: ProcessButton) -> ProcessButton {
+        if process_button.command == ProcessCommands::Select {
+
+        } else if process_button.command == ProcessCommands::Kill {
+
+        }    
         
     }
 
@@ -54,7 +53,8 @@ impl ProcessButton {
         
     }
 
-    fn selected_proc(&mut self, process: Vec<CollectProcessData>) {
+    fn selected_proc(&mut self, process: Vec<CollectProcessData>) -> Pid {
+
 
     }
 
