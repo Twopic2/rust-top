@@ -1,63 +1,103 @@
-
-// anything with proc like signals, Proce tree ops
+// anything with proc like signals, process taskbar
 
 use signal_hook::iterator::{SignalsInfo, exfiltrator::SignalOnly};
-use sysinfo::Pid;
+use sysinfo::{Pid, System};
+use crossterm::event::{MouseEvent, MouseEventKind, MouseButton};
+use ratatui::{
+    Frame,
+    layout::Rect,
+    style::{Color, Style, Modifier},
+    text::{Line, Span},
+    widgets::Paragraph,
+};
 
-use crate::processes::processdata::CollectProcessData;
+use crate::draw::process_tree::ProcessWidget;
 
 pub type Signals = SignalsInfo<SignalOnly>;
 
-/// TODO: Right now we don't need to add Treemode but treemode might help visualize Process parent-child.
-
-#[derive(PartialEq)]
-enum ProcessCommands{
+#[derive(PartialEq, Clone, Copy, Debug)]
+pub enum ProcessCommands {
     Select,
     Kill,
-//  Info,
-//     Signals,
-//     Terminate,
-//     TreeMode, 
+    // Info,
+    // Signal,
+    // TreeMode,
 }
 
-impl ProcessCommands {
-    pub fn bottom_header(process_command: ProcessCommands) -> &'static str {
-        match process_command {
-            ProcessCommands::Select => "select",
-            ProcessCommands::Kill => "kill",
-        }
-    }
+pub struct ProcessTaskBar {
+    pub command: ProcessCommands,
+    last_render_area: Option<Rect>,
 }
 
-struct ProcessButton {
-    command: ProcessCommands,
-}
-
-impl ProcessButton {
+impl ProcessTaskBar {
+    const BUTTONS: [(&'static str, ProcessCommands); 2] = [
+        ( "Select", ProcessCommands::Select),
+        ( "Kill",   ProcessCommands::Kill),
+    ];
     pub fn new() -> Self {
-        ProcessButton {
+        ProcessTaskBar {
             command: ProcessCommands::Select,
+            last_render_area: None,
         }
     }
 
-    pub fn signal_process(&mut self, process_button: ProcessButton) -> ProcessButton {
-        if process_button.command == ProcessCommands::Select {
+    pub fn render(&mut self, frame: &mut Frame, area: Rect, selected_pid: u32) {
+        self.last_render_area = Some(area);
 
-        } else if process_button.command == ProcessCommands::Kill {
+        let mut spans: Vec<Span> = Vec::new();
 
-        }    
-        
+        for (label, cmd) in Self::BUTTONS {
+            let active = if selected_pid != 0 {
+                cmd == ProcessCommands::Kill
+            } else {
+                cmd == ProcessCommands::Select
+            };
+            
+            let label_style = if active {
+                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            };
+
+            spans.push(Span::styled(format!("{} ", label), label_style));
+        }
+
+        frame.render_widget(Paragraph::new(Line::from(spans)), area);
     }
 
-    pub fn render() {
-        
+    pub fn handle_click(&mut self, mouse_event: MouseEvent) -> Option<ProcessCommands> {
+        let Some(area) = self.last_render_area else { return None };
+        if mouse_event.kind != MouseEventKind::Down(MouseButton::Left) { return None; }
+
+        let col = mouse_event.column;
+        let row = mouse_event.row;
+        if row < area.y || row >= area.y + area.height { return None; }
+        if col < area.x || col >= area.x + area.width { return None; }
+
+        let mut x = area.x;
+        for (label, cmd) in Self::BUTTONS {
+            let btn_width = (label.len() + 1) as u16;
+            if col >= x && col < x + btn_width {
+                self.command = cmd;
+                return Some(cmd);
+            }
+            x += btn_width;
+        }
+        None
     }
 
-    fn selected_proc(&mut self, process: Vec<CollectProcessData>) -> Pid {
-
-
+    pub fn signal_process(&self, process_widget: &ProcessWidget, sys: &mut System) {
+        let pid = process_widget.selected_pid;
+        if pid == 0 { return; }
+        match self.command {
+            ProcessCommands::Select => {}
+            ProcessCommands::Kill => Self::kill_proc(Pid::from_u32(pid), sys),
+        }
     }
 
-    fn kill_proc(pid: Pid, ) {}
-
+    fn kill_proc(pid: Pid, sys: &mut System) {
+        if let Some(process) = sys.process(pid) {
+            process.kill();
+        }
+    }
 }

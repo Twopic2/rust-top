@@ -7,6 +7,7 @@ use crate::data::temp::TempData;
 use crate::{event::handle_events};
 use crate::draw::ticker::TickButton;
 use crate::draw::process_tree::ProcessWidget;
+use crate::draw::proc_misc::ProcessTaskBar;
 use ratatui::{
     DefaultTerminal,
     layout::{Constraint, Layout},
@@ -40,6 +41,7 @@ pub struct App {
     disk_graph: DiskGraph,
     duration_control: TickButton,
     process_tree: ProcessWidget,
+    process_taskbar: ProcessTaskBar,
     sys: System,
 }
 
@@ -101,6 +103,7 @@ impl App {
         let disk_graph = DiskGraph::new();
         let duration_control = TickButton::new(Duration::from_millis(2000));
         let process_tree = ProcessWidget::new();
+        let process_taskbar = ProcessTaskBar::new();
 
         let mut temp_widget = TempWidget::default();
         temp_widget.filter();
@@ -119,6 +122,7 @@ impl App {
             disk_graph,
             duration_control,
             process_tree,
+            process_taskbar,
             sys,
         }
     }
@@ -151,7 +155,7 @@ impl App {
 
             self.draw(terminal)?;
 
-            if handle_events(&mut self.duration_control, &mut self.process_tree)? {
+            if handle_events(&mut self.duration_control, &mut self.process_tree, &mut self.process_taskbar, &mut self.sys)? {
                 break;
             }
         }
@@ -308,7 +312,20 @@ impl App {
 
             self.disk_graph.render(frame, right_layout[0]);
 
-            self.process_tree.render(frame, right_layout[1]);
+            let proc_block = Block::new()
+                .borders(Borders::ALL)
+                .title("Processes")
+                .title_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
+            let proc_inner = proc_block.inner(right_layout[1]);
+            frame.render_widget(proc_block, right_layout[1]);
+
+            let proc_split = Layout::vertical([
+                Constraint::Min(1),
+                Constraint::Length(1),
+            ]).split(proc_inner);
+
+            self.process_tree.render(frame, proc_split[0]);
+            self.process_taskbar.render(frame, proc_split[1], self.process_tree.selected_pid);
         })?;
         Ok(())
     }

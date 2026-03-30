@@ -1,8 +1,10 @@
 use std::io;
 use std::time::{Duration, Instant};
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseEvent};
+use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind};
+use sysinfo::System;
 use crate::draw::ticker::{TickButton, TickCounter};
 use crate::draw::process_tree::{ProcessWidget, SearchState};
+use crate::draw::proc_misc::{ProcessTaskBar, ProcessCommands};
 
 #[derive(Debug)]
 pub enum TopEvent {
@@ -35,11 +37,22 @@ fn mouse_ticker_click(event: MouseEvent, tick_button: &mut TickButton) {
     }
 }
 
-fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget: &mut ProcessWidget) -> bool {
-    if process_widget.is_searching() {
+fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget: &mut ProcessWidget, taskbar: &mut ProcessTaskBar, sys: &mut System) -> bool {
+    if process_widget.search_state == SearchState::FilterApplied {
+        if event.code == KeyCode::Esc {
+            process_widget.search_input.clear();
+            process_widget.filtered_table.clear();
+            process_widget.search_state = SearchState::NoSearch;
+        }
+        return false;
+    }
+
+    if process_widget.is_filter_input_active() {
         match event.code {
+            KeyCode::Enter => {
+                process_widget.search_state = SearchState::FilterApplied;
+            }
             KeyCode::Esc => {
-                process_widget.search_state = SearchState::ClearSearch;
                 process_widget.search_input.clear();
                 process_widget.filtered_table.clear();
                 process_widget.search_state = SearchState::NoSearch;
@@ -59,6 +72,14 @@ fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget:
 
     match event.code {
         KeyCode::Char('q') | KeyCode::Esc => true,
+        KeyCode::Char('k') => {
+            let pid = process_widget.selected_pid;
+            if pid != 0 {
+                taskbar.signal_process(process_widget, sys);
+                process_widget.delete_table_entry(pid);
+            }
+            false
+        }
         KeyCode::Char('/') => {
             process_widget.search_state = SearchState::Searching;
             process_widget.search_input.clear();
@@ -76,7 +97,7 @@ fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget:
     }
 }
 
-pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessWidget) -> io::Result<bool> {
+pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessWidget, taskbar: &mut ProcessTaskBar, sys: &mut System) -> io::Result<bool> {
     let tick_rate = tick_button.get_duration();
     let deadline = Instant::now() + tick_rate;
 
@@ -89,12 +110,24 @@ pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessW
         if let Some(event) = poll_event(remaining)? {
             match event {
                 TopEvent::KeyInput(key) => {
-                    if keystroke_type(key, tick_button, process_widget) {
+                    if keystroke_type(key, tick_button, process_widget, taskbar, sys) {
                         return Ok(true);
                     }
+                    break;
                 }
                 TopEvent::MouseInput(mouse_event) => {
                     mouse_ticker_click(mouse_event, tick_button);
+                    if let MouseEventKind::Down(MouseButton::Left) = mouse_event.kind {
+                        process_widget.handle_click(mouse_event.column, mouse_event.row);
+                        if let Some(ProcessCommands::Kill) = taskbar.handle_click(mouse_event) {
+                            let pid = process_widget.selected_pid;
+                            if pid != 0 {
+                                taskbar.signal_process(process_widget, sys);
+                                process_widget.delete_table_entry(pid);
+                            }
+                        }
+                        break;
+                    }
                 }
             }
         }

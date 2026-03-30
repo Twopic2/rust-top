@@ -6,7 +6,7 @@ use ratatui::{
     Frame,
     style::{Color, Style, Modifier},
     text::Line,
-    widgets::{Block, Borders, List, ListItem, Paragraph},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
     layout::Rect,
 };
 
@@ -39,6 +39,7 @@ pub enum SortOrder {
 pub enum SearchState {
     NoSearch,
     Searching,
+    FilterApplied,
     ClearSearch,
 }
 
@@ -46,6 +47,7 @@ pub enum SearchState {
 // impl SearchState {}
 
 pub struct ProcessWidget {
+    pub selected_pid: u32,
     sort_column: ProcessColumn,
     sort_order: SortOrder,
     pub search_state: SearchState,
@@ -53,11 +55,14 @@ pub struct ProcessWidget {
     collector: CollectProcessData,
     proc_table: Vec<CollectProcessData>,
     pub filtered_table: Vec<CollectProcessData>,
+    sorted_proc: Vec<CollectProcessData>,
+    render_area: Rect,
 }
 
 impl ProcessWidget {
     pub fn new() -> Self {
         Self {
+            selected_pid: 0,
             sort_column: ProcessColumn::CpuUsage,
             sort_order: SortOrder::Descending,
             search_state: SearchState::NoSearch,
@@ -65,6 +70,8 @@ impl ProcessWidget {
             collector: CollectProcessData::default(),
             proc_table: Vec::new(),
             filtered_table: Vec::new(),
+            sorted_proc: Vec::new(),
+            render_area: Rect::default(),
         }
     }
 
@@ -75,14 +82,24 @@ impl ProcessWidget {
         }
     }
 
-    // Todo: Got to add a close searching 
     pub fn is_searching(&self) -> bool {
+        matches!(self.search_state, SearchState::Searching | SearchState::FilterApplied)
+    }
+
+    pub fn is_filter_input_active(&self) -> bool {
         self.search_state == SearchState::Searching
     }
 
     // pub fn is_clear_searching(&self) -> bool {
     //     self.search_state == SearchState::ClearSearch
     // }
+
+    pub fn delete_table_entry(&mut self, pid: u32) {
+        self.proc_table.retain(|p| p.pid != pid);
+        self.filtered_table.retain(|p| p.pid != pid);
+        self.sorted_proc.retain(|p| p.pid != pid);
+        self.selected_pid = 0;
+    }
 
     pub fn apply_filter(&mut self) {
         let query = self.search_input.to_lowercase();
@@ -95,11 +112,6 @@ impl ProcessWidget {
             .collect();
 
         self.proc_table.clear();
-    }
-
-    // Signals to proc_misc to get seletect proc
-    pub fn get_seletect_process(&self, proc: u32) -> Option<u32> {
-        self.proc_table.iter().find(|p| p.pid == proc).map(|p| p.pid)
     }
 
     pub fn get_sorted_processes(&self, processes: Vec<CollectProcessData>) -> Vec<CollectProcessData> {
@@ -133,18 +145,31 @@ impl ProcessWidget {
         frame.render_widget(search_box, filter_area);
     }
 
-    pub fn render(&self, frame: &mut Frame, area: Rect) {
+    pub fn handle_click(&mut self, col: u16, row: u16) {
+        let area = self.render_area;
+        if col < area.x || col >= area.x + area.width { return; }
+        if row < area.y || row >= area.y + area.height { return; }
+
+        let offset = row.saturating_sub(area.y + 2) as usize;
+        if let Some(p) = self.sorted_proc.get(offset) {
+            self.selected_pid = p.pid;
+        }
+    }
+
+    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
+        self.render_area = area;
+
         let source = if self.is_searching() {
             &self.filtered_table
         } else {
             &self.proc_table
         };
 
-        if self.is_searching() {
+        if self.is_filter_input_active() {
             self.create_filter_bar(frame, area);
         }
 
-        let top_processes = self.get_sorted_processes(source.clone());
+        self.sorted_proc = self.get_sorted_processes(source.to_vec());
 
         let header = format!(
             "{:>7} {:>7} {:>7} {:>15} {}",
@@ -159,7 +184,7 @@ impl ProcessWidget {
             ListItem::new(header).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
         ];
 
-        let data_items: Vec<ListItem> = top_processes
+        let data_items: Vec<ListItem> = self.sorted_proc
             .iter()
             .map(|p| {
                 let line = format!(
@@ -177,15 +202,15 @@ impl ProcessWidget {
         process_items.extend(data_items);
 
         let process_list = List::new(process_items)
-            .block(
-                Block::new()
-                    .borders(Borders::ALL)
-                    .title("Processes")
-                    .title_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-            )
-            .style(Style::default().fg(Color::White));
+            .style(Style::default().fg(Color::White))
+            .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD));
 
-        frame.render_widget(process_list, area);
+        let list_selected = self.sorted_proc
+            .iter()
+            .position(|p| p.pid == self.selected_pid)
+            .map(|i| i + 1);
+        let mut list_state = ListState::default().with_selected(list_selected);
+        frame.render_stateful_widget(process_list, area, &mut list_state);
     }
 }
 
