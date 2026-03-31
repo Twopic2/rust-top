@@ -117,7 +117,7 @@ impl SystemInfo {
         Some(info)
     }
  
-    pub fn display_memory(sys: &mut System) -> Vec<String> {
+    pub fn display_memory(sys: &mut System) -> Option<Vec<String>> {
         let mut info = Vec::new();
 
         let total= sys.total_memory() as f64 / GIGABYTE;
@@ -129,7 +129,7 @@ impl SystemInfo {
         info.push(format!("Total: {:.2} GB    Total Swap: {:.2} GB", total, total_swap));
         info.push(format!("Used: {:.2} GB    Used Swap: ({:.2} GB)", used, used_swap));
 
-        info
+        Some(info)
     }
 
     pub fn set_refresh_timer(sys: &mut System) {

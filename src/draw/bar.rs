@@ -191,7 +191,7 @@ impl TempBar {
             }
 
             spans.push(Span::raw(" "));
-        }
+        } 
 
         if let Some(disk_temp) = self.disk_temp {
             let temp_percentage = (disk_temp / 100.0 * 100.0).min(100.0).max(0.0);
@@ -218,7 +218,7 @@ impl TempBar {
                     Style::default().fg(Color::DarkGray)
                 ));
             }
-        }
+        } 
 
         if let Some(nic_temp) = self.nic_temp {
             let temp_percentage = (nic_temp / 100.0 * 100.0).min(100.0).max(0.0);
@@ -245,7 +245,7 @@ impl TempBar {
                     Style::default().fg(Color::DarkGray)
                 ));
             }
-        }
+        } 
 
         if !spans.is_empty() {
             let line = Line::from(spans);

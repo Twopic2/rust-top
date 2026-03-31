@@ -5,29 +5,23 @@ https://github.com/ClementTsang/bottom
 */
 #[derive(Debug, Default)]
 pub struct DiskData {
-    disks: Disks,
-    disk_name: Vec<String>,
-    filesytem: Vec<String>,
-    mount: Vec<String>,
-    total: Vec<u64>,
-    available: Vec<u64>,
-    curr_read: Vec<u64>,
-    curr_write: Vec<u64>,
+    pub disks: Disks,
+    pub disk_name: Vec<String>,
+    pub filesytem: Vec<String>,
+    pub mount: Vec<String>,
+    pub total: Vec<u64>,
+    pub available: Vec<u64>,
+    pub curr_read: Vec<u64>,
+    pub curr_write: Vec<u64>,
 }
 
 impl DiskData {
     pub fn refresh(&mut self, sys: &mut System) {
-        #[cfg(not(target_os = "macos"))]
         self.disks.refresh(true);
-
         sys.refresh_processes(sysinfo::ProcessesToUpdate::All, false);
     }
     
     fn get_total_io_read(&self, sys: &mut System) -> u64 {
-        #[cfg(target_os = "macos")]
-        return 0;
-
-        #[cfg(not(target_os = "macos"))]
         sys.processes()
             .values()
             .map(|p| p.disk_usage().read_bytes)
@@ -35,10 +29,6 @@ impl DiskData {
     }
 
     fn get_total_io_write(&self, sys: &mut System) -> u64 {
-        #[cfg(target_os = "macos")]
-        return 0;
-
-        #[cfg(not(target_os = "macos"))]
         sys.processes()
             .values()
             .map(|p| p.disk_usage().written_bytes)
@@ -90,37 +80,5 @@ impl DiskData {
 
         self.curr_read = vec![total_read; disks_data.len()];
         self.curr_write = vec![total_write; disks_data.len()];
-    }
-
-    pub fn get_disks(&self) -> &[String] {
-        &self.disk_name
-    }
-
-    pub fn get_filesystems(&self) -> &[String] {
-        &self.filesytem
-    }
-
-    pub fn get_mounts(&self) -> &[String] {
-        &self.mount
-    }
-
-    pub fn get_totals(&self) -> &[u64] {
-        &self.total
-    }
-
-    pub fn get_available(&self) -> &[u64] {
-        &self.available
-    }
-
-    pub fn get_reads(&self) -> &[u64] {
-        &self.curr_read
-    }
-
-    pub fn get_writes(&self) -> &[u64] {
-        &self.curr_write
-    }
-
-    pub fn len(&self) -> usize {
-        self.disk_name.len()
     }
 }

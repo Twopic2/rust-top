@@ -5,6 +5,7 @@ use sysinfo::System;
 use crate::draw::ticker::{TickButton, TickCounter};
 use crate::draw::process_tree::{ProcessWidget, SearchState};
 use crate::draw::proc_misc::{ProcessTaskBar, ProcessCommands};
+use crate::draw::popup::AboutPopUp;
 
 #[derive(Debug)]
 pub enum TopEvent {
@@ -37,7 +38,8 @@ fn mouse_ticker_click(event: MouseEvent, tick_button: &mut TickButton) {
     }
 }
 
-fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget: &mut ProcessWidget, taskbar: &mut ProcessTaskBar, sys: &mut System) -> bool {
+fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget: &mut ProcessWidget, 
+    taskbar: &mut ProcessTaskBar, popup: &mut AboutPopUp, sys: &mut System) -> bool {
     if process_widget.search_state == SearchState::FilterApplied {
         if event.code == KeyCode::Esc {
             process_widget.search_input.clear();
@@ -79,6 +81,10 @@ fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget:
                 process_widget.delete_table_entry(pid);
             }
             false
+        } 
+        KeyCode::Char('p') => {
+            popup.visable = !popup.visable;
+            false
         }
         KeyCode::Char('/') => {
             process_widget.search_state = SearchState::Searching;
@@ -97,7 +103,7 @@ fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget:
     }
 }
 
-pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessWidget, taskbar: &mut ProcessTaskBar, sys: &mut System) -> io::Result<bool> {
+pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessWidget, taskbar: &mut ProcessTaskBar, popup: &mut AboutPopUp, sys: &mut System) -> io::Result<bool> {
     let tick_rate = tick_button.get_duration();
     let deadline = Instant::now() + tick_rate;
 
@@ -110,7 +116,7 @@ pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessW
         if let Some(event) = poll_event(remaining)? {
             match event {
                 TopEvent::KeyInput(key) => {
-                    if keystroke_type(key, tick_button, process_widget, taskbar, sys) {
+                    if keystroke_type(key, tick_button, process_widget, taskbar, popup, sys) {
                         return Ok(true);
                     }
                     break;

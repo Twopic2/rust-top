@@ -1,3 +1,4 @@
+use ratatui::text::Line;
 use sysctl::Sysctl;
 
 const KILOBYTE: usize = 1024;
@@ -42,5 +43,28 @@ impl CacheMac {
         }
 
         levels
-    }   
+    }
+
+    pub fn cache_lines() -> Vec<Line<'static>> {
+        let cache_levels = Self::cache_levels();
+        if cache_levels.is_empty() {
+            return vec![Line::from("Apple Cache not here")];
+        }
+
+        let p_cores: Vec<_> = cache_levels.iter().filter(|s| s.starts_with("P-")).cloned().collect();
+        let e_cores: Vec<_> = cache_levels.iter().filter(|s| s.starts_with("E-")).cloned().collect();
+        let mut lines = Vec::new();
+
+        if !p_cores.is_empty() {
+            lines.push(Line::from(p_cores.join(" | ")));
+        }
+        if !e_cores.is_empty() {
+            lines.push(Line::from(e_cores.join(" | ")));
+        }
+        if lines.is_empty() {
+            vec![Line::from(cache_levels.join(" | "))]
+        } else {
+            lines
+        }
+    }
 } 

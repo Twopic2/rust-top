@@ -5,3 +5,4 @@ pub mod ticker;
 pub mod widget;
 pub mod process_tree;
 pub mod proc_misc;
+pub mod popup;

@@ -228,15 +228,15 @@ impl DiskGraph {
         disk_data.collect_all(sys);
 
         self.entries.clear();
-        for i in 0..disk_data.len() {
+        for i in 0..disk_data.disk_name.len() {
             self.entries.push(DiskDisplayEntry {
-                name: disk_data.get_disks()[i].clone(),
-                filesystem: disk_data.get_filesystems()[i].clone(),
-                mount: disk_data.get_mounts()[i].clone(),
-                total: disk_data.get_totals()[i],
-                available: disk_data.get_available()[i],
-                io_read: disk_data.get_reads()[i],
-                io_write: disk_data.get_writes()[i],
+                name: disk_data.disk_name[i].clone(),
+                filesystem: disk_data.filesytem[i].clone(),
+                mount: disk_data.mount[i].clone(),
+                total: disk_data.total[i],
+                available: disk_data.available[i],
+                io_read: disk_data.curr_read[i],
+                io_write: disk_data.curr_write[i],
             });
         }
     }

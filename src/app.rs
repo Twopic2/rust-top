@@ -8,6 +8,7 @@ use crate::{event::handle_events};
 use crate::draw::ticker::TickButton;
 use crate::draw::process_tree::ProcessWidget;
 use crate::draw::proc_misc::ProcessTaskBar;
+use crate::draw::popup::{self, AboutPopUp};
 use ratatui::{
     DefaultTerminal,
     layout::{Constraint, Layout},
@@ -43,6 +44,7 @@ pub struct App {
     process_tree: ProcessWidget,
     process_taskbar: ProcessTaskBar,
     sys: System,
+    popup: AboutPopUp,
 }
 
 impl App {
@@ -59,27 +61,7 @@ impl App {
         };
 
         #[cfg(target_os = "macos")]
-        let cache_levels = CacheMac::cache_levels();
-
-        #[cfg(target_os = "macos")]
-        let cpu_cache_lines: Vec<Line<'static>> = if !cache_levels.is_empty() {
-            let p_cores: Vec<_> = cache_levels.iter().filter(|s| s.starts_with("P-")).cloned().collect();
-            let e_cores: Vec<_> = cache_levels.iter().filter(|s| s.starts_with("E-")).cloned().collect();
-            let mut lines = Vec::new();
-            if !p_cores.is_empty() {
-                lines.push(Line::from(p_cores.join(" | ")));
-            }
-            if !e_cores.is_empty() {
-                lines.push(Line::from(e_cores.join(" | ")));
-            }
-            if lines.is_empty() {
-                vec![Line::from(cache_levels.join(" | "))]
-            } else {
-                lines
-            }
-        } else {
-            vec![Line::from("Apple Cache not here")]
-        };
+        let cpu_cache_lines: Vec<Line<'static>> = CacheMac::cache_lines();
 
         #[cfg(not(target_os = "macos"))]
         let cpu_cache_lines = if let Some(cpu_cache) = SystemInfo::display_cpu_cache() {
@@ -92,7 +74,11 @@ impl App {
             vec![Line::from("Cache info not available")]
         };
 
-        let mem_lines: Vec<Line<'static>> = Vec::new();
+        let mem_lines: Vec<Line<'static>> = if let Some(mem_info) =  SystemInfo::display_memory(&mut sys) {
+            mem_info.into_iter().map(| str | Line::from(format!("{}", str))).collect::<Vec<_>>()
+        } else {
+            vec![Line::from("No mem info")]
+        };
 
         let num_cores = SystemInfo::num_cores(&mut sys);
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
@@ -107,6 +93,8 @@ impl App {
 
         let mut temp_widget = TempWidget::default();
         temp_widget.filter();
+
+        let popup = AboutPopUp::default();
 
         Self {
             sys_info,
@@ -124,6 +112,7 @@ impl App {
             process_tree,
             process_taskbar,
             sys,
+            popup,
         }
     }
 
@@ -155,7 +144,7 @@ impl App {
 
             self.draw(terminal)?;
 
-            if handle_events(&mut self.duration_control, &mut self.process_tree, &mut self.process_taskbar, &mut self.sys)? {
+            if handle_events(&mut self.duration_control, &mut self.process_tree, &mut self.process_taskbar, &mut self.popup, &mut self.sys)? {
                 break;
             }
         }
@@ -326,6 +315,8 @@ impl App {
 
             self.process_tree.render(frame, proc_split[0]);
             self.process_taskbar.render(frame, proc_split[1], self.process_tree.selected_pid);
+
+            self.popup.render(frame, frame.area());
         })?;
         Ok(())
     }
