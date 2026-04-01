@@ -1,5 +1,6 @@
 use ratatui::{
     layout::{Alignment, Constraint, Rect},
+    style::{Color, Style},
     text::Line,
     widgets::{Block, Clear, Paragraph},
 };
@@ -13,6 +14,17 @@ pub struct AboutPopUp {
 impl AboutPopUp {
     pub fn render(&self, frame: &mut Frame, area: Rect) {
         if !self.visable { return; }
+
+        // Simulate blur with a ░ overlay across the full background
+        let blur_line = "░".repeat(area.width as usize);
+        let blur_lines: Vec<Line> = (0..area.height)
+            .map(|_| Line::from(blur_line.clone()))
+            .collect();
+        frame.render_widget(
+            Paragraph::new(blur_lines)
+                .style(Style::default().fg(Color::DarkGray).bg(Color::Black)),
+            area,
+        );
 
         let about_area = area.centered(Constraint::Percentage(60), Constraint::Percentage(20));
 
@@ -35,5 +47,5 @@ impl AboutPopUp {
         ];
 
         frame.render_widget(Paragraph::new(lines).alignment(Alignment::Center), inner);
-    }   
+    }
 }

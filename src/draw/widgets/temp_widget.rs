@@ -8,8 +8,8 @@ use ratatui::{
 
 use crate::data::temp::TempData;
 
-/* 
-TempWidget just lists the names of each component whether thats cpus/gpus/ram/disk/nics 
+/*
+TempWidget just lists the names of each component whether thats cpus/gpus/ram/disk/nics
 */
 
 #[derive(Default)]
@@ -70,7 +70,7 @@ impl TempWidget {
         let max = [&self.cpu_name, &self.disk_name, &self.nic_name]
             .iter()
             .filter_map(|n| n.as_ref())
-            .map(|n| n.len() + 10) 
+            .map(|n| n.len() + 10)
             .max()
             .unwrap_or(16);
 

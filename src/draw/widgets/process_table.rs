@@ -28,7 +28,7 @@ impl ProcessColumn {
             ProcessColumn::Command => "Command",
             ProcessColumn::Program => "Program",
         }
-    } 
+    }
 }
 
 pub enum SortOrder {
@@ -43,10 +43,7 @@ pub enum SearchState {
     ClearSearch,
 }
 
-// ToDo: Make make searchstate better
-// impl SearchState {}
-
-pub struct ProcessWidget {
+pub struct ProcessTable {
     pub selected_pid: u32,
     sort_column: ProcessColumn,
     sort_order: SortOrder,
@@ -59,7 +56,7 @@ pub struct ProcessWidget {
     render_area: Rect,
 }
 
-impl ProcessWidget {
+impl ProcessTable {
     pub fn new() -> Self {
         Self {
             selected_pid: 0,
@@ -89,10 +86,6 @@ impl ProcessWidget {
     pub fn is_filter_input_active(&self) -> bool {
         self.search_state == SearchState::Searching
     }
-
-    // pub fn is_clear_searching(&self) -> bool {
-    //     self.search_state == SearchState::ClearSearch
-    // }
 
     pub fn delete_table_entry(&mut self, pid: u32) {
         self.proc_table.retain(|p| p.pid != pid);

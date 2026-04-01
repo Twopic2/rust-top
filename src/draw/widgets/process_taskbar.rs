@@ -1,5 +1,3 @@
-// anything with proc like signals, process taskbar
-
 use signal_hook::iterator::{SignalsInfo, exfiltrator::SignalOnly};
 use sysinfo::{Pid, System};
 use crossterm::event::{MouseEvent, MouseEventKind, MouseButton};
@@ -11,7 +9,7 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::draw::process_tree::ProcessWidget;
+use crate::draw::widgets::process_table::ProcessTable;
 
 pub type Signals = SignalsInfo<SignalOnly>;
 
@@ -19,9 +17,6 @@ pub type Signals = SignalsInfo<SignalOnly>;
 pub enum ProcessCommands {
     Select,
     Kill,
-    // Info,
-    // Signal,
-    // TreeMode,
 }
 
 pub struct ProcessTaskBar {
@@ -31,9 +26,10 @@ pub struct ProcessTaskBar {
 
 impl ProcessTaskBar {
     const BUTTONS: [(&'static str, ProcessCommands); 2] = [
-        ( "Select", ProcessCommands::Select),
-        ( "Kill",   ProcessCommands::Kill),
+        ("Select", ProcessCommands::Select),
+        ("Kill",   ProcessCommands::Kill),
     ];
+
     pub fn new() -> Self {
         ProcessTaskBar {
             command: ProcessCommands::Select,
@@ -52,7 +48,7 @@ impl ProcessTaskBar {
             } else {
                 cmd == ProcessCommands::Select
             };
-            
+
             let label_style = if active {
                 Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
             } else {
@@ -86,7 +82,7 @@ impl ProcessTaskBar {
         None
     }
 
-    pub fn signal_process(&self, process_widget: &ProcessWidget, sys: &mut System) {
+    pub fn signal_process(&self, process_widget: &ProcessTable, sys: &mut System) {
         let pid = process_widget.selected_pid;
         if pid == 0 { return; }
         match self.command {

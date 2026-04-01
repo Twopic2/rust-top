@@ -2,10 +2,10 @@ use std::io;
 use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind};
 use sysinfo::System;
-use crate::draw::ticker::{TickButton, TickCounter};
-use crate::draw::process_tree::{ProcessWidget, SearchState};
-use crate::draw::proc_misc::{ProcessTaskBar, ProcessCommands};
-use crate::draw::popup::AboutPopUp;
+use crate::draw::widgets::refresh_ticker::{TickButton, TickCounter};
+use crate::draw::widgets::process_table::{ProcessTable, SearchState};
+use crate::draw::widgets::process_taskbar::{ProcessTaskBar, ProcessCommands};
+use crate::draw::widgets::about_popup::AboutPopUp;
 
 #[derive(Debug)]
 pub enum TopEvent {
@@ -38,7 +38,7 @@ fn mouse_ticker_click(event: MouseEvent, tick_button: &mut TickButton) {
     }
 }
 
-fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget: &mut ProcessWidget, 
+fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget: &mut ProcessTable, 
     taskbar: &mut ProcessTaskBar, popup: &mut AboutPopUp, sys: &mut System) -> bool {
     if process_widget.search_state == SearchState::FilterApplied {
         if event.code == KeyCode::Esc {
@@ -103,7 +103,7 @@ fn keystroke_type(event: KeyEvent, tick_button: &mut TickButton, process_widget:
     }
 }
 
-pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessWidget, taskbar: &mut ProcessTaskBar, popup: &mut AboutPopUp, sys: &mut System) -> io::Result<bool> {
+pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessTable, taskbar: &mut ProcessTaskBar, popup: &mut AboutPopUp, sys: &mut System) -> io::Result<bool> {
     let tick_rate = tick_button.get_duration();
     let deadline = Instant::now() + tick_rate;
 

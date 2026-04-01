@@ -5,10 +5,10 @@ use crossterm::execute;
 use sysinfo::System;
 use crate::data::temp::TempData;
 use crate::{event::handle_events};
-use crate::draw::ticker::TickButton;
-use crate::draw::process_tree::ProcessWidget;
-use crate::draw::proc_misc::ProcessTaskBar;
-use crate::draw::popup::{self, AboutPopUp};
+use crate::draw::widgets::refresh_ticker::TickButton;
+use crate::draw::widgets::process_table::ProcessTable;
+use crate::draw::widgets::process_taskbar::ProcessTaskBar;
+use crate::draw::widgets::about_popup::AboutPopUp;
 use ratatui::{
     DefaultTerminal,
     layout::{Constraint, Layout},
@@ -23,10 +23,11 @@ use crate::data::darwin::cache::CacheMac;
 
 use crate::data::info::{OsInfo, SystemInfo};
 use crate::data::disk::DiskData;
-use crate::draw::graph::{MultiCoreGraph, DiskGraph, ColorScheme};
-use crate::draw::bar::{TotalCoreBar, TempBar, BarColorScheme};
-use crate::draw::histogram::NetworkHistogram;
-use crate::draw::widget::TempWidget;
+use crate::draw::widgets::cpu_graph::{MultiCoreGraph, ColorScheme};
+use crate::draw::widgets::disk_table::DiskTable;
+use crate::draw::widgets::cpu_bar::{TotalCoreBar, TempBar, BarColorScheme};
+use crate::draw::widgets::network_graph::NetworkGraph;
+use crate::draw::widgets::temp_widget::TempWidget;
 
 pub struct App {
     sys_info: SystemInfo,
@@ -37,11 +38,11 @@ pub struct App {
     total_cpu_bar: TotalCoreBar,
     temp_bar: TempBar,
     temp_widget: TempWidget,
-    network_histogram: NetworkHistogram,
+    network_histogram: NetworkGraph,
     disk_data: DiskData,
-    disk_graph: DiskGraph,
+    disk_graph: DiskTable,
     duration_control: TickButton,
-    process_tree: ProcessWidget,
+    process_tree: ProcessTable,
     process_taskbar: ProcessTaskBar,
     sys: System,
     popup: AboutPopUp,
@@ -84,11 +85,11 @@ impl App {
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
         let total_cpu_bar = TotalCoreBar::new(BarColorScheme::Green);
         let temp_bar = TempBar::new(BarColorScheme::Green);
-        let network_histogram = NetworkHistogram::new(60);
+        let network_histogram = NetworkGraph::new(60);
         let disk_data = DiskData::default();
-        let disk_graph = DiskGraph::new();
+        let disk_graph = DiskTable::new();
         let duration_control = TickButton::new(Duration::from_millis(2000));
-        let process_tree = ProcessWidget::new();
+        let process_tree = ProcessTable::new();
         let process_taskbar = ProcessTaskBar::new();
 
         let mut temp_widget = TempWidget::default();
