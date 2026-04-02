@@ -1,5 +1,5 @@
 use std::io;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind};
 use sysinfo::System;
 use crate::draw::widgets::refresh_ticker::{TickButton, TickCounter};
@@ -7,22 +7,17 @@ use crate::draw::widgets::process_table::{ProcessTable, SearchState};
 use crate::draw::widgets::process_taskbar::{ProcessTaskBar, ProcessCommands};
 use crate::draw::widgets::about_popup::AboutPopUp;
 
-pub fn handle_events(
-    tick_button: &mut TickButton,
-    process_widget: &mut ProcessTable,
-    taskbar: &mut ProcessTaskBar,
-    popup: &mut AboutPopUp,
-    sys: &mut System,
-) -> io::Result<bool> {
-    let deadline = Instant::now() + tick_button.get_duration();
+pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessTable, taskbar: &mut ProcessTaskBar, popup: &mut AboutPopUp, sys: &mut System) -> io::Result<bool> {
+    let tick_rate = tick_button.get_duration();
+    let last_tick = Instant::now();
 
     loop {
-        let remaining = deadline.saturating_duration_since(Instant::now());
-        if remaining.is_zero() {
-            return Ok(false);
-        }
+        let timeout = tick_rate
+            .checked_sub(last_tick.elapsed())
+            .unwrap_or(Duration::ZERO)
+            .min(Duration::from_millis(50));
 
-        if event::poll(remaining)? {
+        if event::poll(timeout)? {
             match event::read()? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
                     if keystroke_type(key, tick_button, process_widget, taskbar, popup, sys) {
@@ -44,6 +39,10 @@ pub fn handle_events(
                 }
                 _ => {}
             }
+        }
+
+        if last_tick.elapsed() >= tick_rate {
+            return Ok(false);
         }
     }
 }

@@ -1,4 +1,5 @@
 pub mod info;
+pub mod clock;
 
 pub mod temp;
 pub mod network;

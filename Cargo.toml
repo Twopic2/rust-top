@@ -18,6 +18,9 @@ signal-hook = "0.4.3"
 sys-info = "0.9.1"
 sysctl = "0.7.1"
 sysinfo = "0.37.2"
+chrono = "0.4"
+rsntp = { version = "4.1.1", features = ["async"] }
+tokio = { version = "1", features = ["full"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 lm-sensors = "0.5.0"

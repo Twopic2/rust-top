@@ -22,6 +22,7 @@ use ratatui::{
 use crate::data::darwin::cache::CacheMac;
 
 use crate::data::info::{OsInfo, SystemInfo};
+use crate::data::clock::local_time;
 use crate::data::disk::DiskData;
 use crate::draw::widgets::cpu_graph::{MultiCoreGraph, ColorScheme};
 use crate::draw::widgets::disk_table::DiskTable;
@@ -46,6 +47,7 @@ pub struct App {
     process_taskbar: ProcessTaskBar,
     sys: System,
     popup: AboutPopUp,
+    ntp_time: String,
 }
 
 impl App {
@@ -114,6 +116,7 @@ impl App {
             process_taskbar,
             sys,
             popup,
+            ntp_time: "--:--:--".to_string(),
         }
     }
 
@@ -135,12 +138,17 @@ impl App {
         self.process_tree.refresh(&mut self.sys);
     }
 
-    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+    async fn update_time(&mut self) {
+        self.ntp_time = local_time().await;
+    }
+
+    pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         execute!(io::stdout(), EnableMouseCapture)?;
 
         loop {
             SystemInfo::set_refresh_timer(&mut self.sys);
-            
+
+            self.update_time().await;
             self.update_data();
 
             self.draw(terminal)?;
@@ -154,7 +162,6 @@ impl App {
     
     fn draw(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         terminal.draw(|frame| {
-            let title = Line::from("Rust-Top: Terminal Top in Rust".bold());
 
             let instructions = Line::from(vec![
                 " Quit ".red().bold().into(),
@@ -164,7 +171,7 @@ impl App {
             let hostname_output = self.sys_info.display_host_name();
 
             let outer_block = Block::bordered()
-                .title(title.centered())
+                .title(Line::from(self.ntp_time.clone()).centered())
                 .title(Line::from(hostname_output).left_aligned())
                 .title_bottom(instructions.centered())
                 .border_set(border::THICK);

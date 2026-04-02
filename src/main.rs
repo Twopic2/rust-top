@@ -8,9 +8,10 @@ mod tools;
 use app::App;
 use std::io;
 
-fn main() -> io::Result<()> {
+#[tokio::main]
+async fn main() -> io::Result<()> {
     let mut terminal = ratatui::init();
-    let result = App::new().run(&mut terminal);
+    let result = App::new().run(&mut terminal).await;
     ratatui::restore();
     result
 }
