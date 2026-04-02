@@ -46,7 +46,10 @@ impl CollectProcessData {
         process_data_vec
     }
 
-    // pub fn process_status(&mut self) -> &'static str
+    pub fn process_status(&mut self) -> &'static str {
+        ""
+    }
+
 }
 
 fn uid_to_user(uid: Option<libc::uid_t>) -> &'static str {
