@@ -7,7 +7,7 @@ use ratatui::{
     style::{Color, Style, Modifier},
     text::Line,
     widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
-    layout::Rect,
+    layout::{Constraint, Layout, Rect},
 };
 
 #[derive(Clone, Copy)]
@@ -119,13 +119,6 @@ impl ProcessTable {
     }
 
     fn create_filter_bar(&self, frame: &mut Frame, area: Rect) {
-        let filter_width = 30u16.min(area.width);
-        let filter_area = Rect {
-            x: area.x + area.width.saturating_sub(filter_width),
-            y: area.y,
-            width: filter_width,
-            height: 3,
-        };
         let search_text = format!("/{}", self.search_input);
         let search_box = Paragraph::new(Line::from(search_text))
             .block(
@@ -135,7 +128,7 @@ impl ProcessTable {
                     .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
             )
             .style(Style::default().fg(Color::White).bold());
-        frame.render_widget(search_box, filter_area);
+        frame.render_widget(search_box, area);
     }
 
     pub fn handle_click(&mut self, col: u16, row: u16) {
@@ -152,15 +145,22 @@ impl ProcessTable {
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
         self.render_area = area;
 
+        let list_area = if self.is_filter_input_active() {
+            let split = Layout::vertical([
+                Constraint::Length(3),
+                Constraint::Min(1),
+            ]).split(area);
+            self.create_filter_bar(frame, split[0]);
+            split[1]
+        } else {
+            area
+        };
+
         let source = if self.is_searching() {
             &self.filtered_table
         } else {
             &self.proc_table
         };
-
-        if self.is_filter_input_active() {
-            self.create_filter_bar(frame, area);
-        }
 
         self.sorted_proc = self.get_sorted_processes(source.to_vec());
 
@@ -203,7 +203,7 @@ impl ProcessTable {
             .position(|p| p.pid == self.selected_pid)
             .map(|i| i + 1);
         let mut list_state = ListState::default().with_selected(list_selected);
-        frame.render_stateful_widget(process_list, area, &mut list_state);
+        frame.render_stateful_widget(process_list, list_area, &mut list_state);
     }
 }
 

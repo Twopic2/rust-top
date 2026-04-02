@@ -162,7 +162,6 @@ impl App {
     
     fn draw(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         terminal.draw(|frame| {
-
             let instructions = Line::from(vec![
                 " Quit ".red().bold().into(),
                 "<Q/Esc> ".red().bold(),
@@ -320,6 +319,8 @@ impl App {
                 Constraint::Min(1),
                 Constraint::Length(1),
             ]).split(proc_inner);
+
+
 
             self.process_tree.render(frame, proc_split[0]);
             self.process_taskbar.render(frame, proc_split[1], self.process_tree.selected_pid);
