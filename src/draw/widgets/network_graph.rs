@@ -7,10 +7,7 @@ use ratatui::{
     text::Span,
 };
 use crate::data::network::NetworkHarvester;
-
-const GIGABYTE: f64 = 1024.0 * 1024.0 * 1024.0;
-const MEGABYTE: f64 = 1024.0 * 1024.0;
-const KILOBYTE: f64 = 1024.0;
+use crate::tools::units::{KILOBYTE, format_rate, format_total, format_axis_label};
 
 pub struct NetworkGraph {
     rx_history: Vec<(f64, f64)>,
@@ -53,44 +50,6 @@ impl NetworkGraph {
         }
     }
 
-    fn format_rate(bytes: f64) -> String {
-        if bytes >= GIGABYTE {
-            format!("{:.1}Gb/s", bytes / GIGABYTE)
-        } else if bytes >= MEGABYTE {
-            format!("{:.1}Mb/s", bytes / MEGABYTE)
-        } else if bytes >= KILOBYTE {
-            format!("{:.1}Kb/s", bytes / KILOBYTE)
-        } else {
-            format!("{:.0}b/s", bytes)
-        }
-    }
-
-    fn format_total(bytes: u64) -> String {
-        if bytes as f64 >= GIGABYTE {
-            format!("{:.1}GB", bytes as f64 / GIGABYTE)
-        } else if bytes as f64 >= MEGABYTE {
-            format!("{:.1}MB", bytes as f64 / MEGABYTE)
-        } else if bytes as f64 >= KILOBYTE {
-            format!("{:.1}KB", bytes as f64 / KILOBYTE)
-        } else {
-            format!("{}B", bytes)
-        }
-    }
-
-    fn format_axis_label(bytes: f64) -> String {
-        if bytes >= GIGABYTE {
-            format!("{:.1}G", bytes / GIGABYTE)
-        } else if bytes >= MEGABYTE {
-            format!("{:.1}M", bytes / MEGABYTE)
-        } else if bytes >= KILOBYTE {
-            format!("{:.1}K", bytes / KILOBYTE)
-        } else if bytes > 0.0 {
-            format!("{:.0}", bytes)
-        } else {
-            "0".to_string()
-        }
-    }
-
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
         let current_rx = self.rx_history.last().map(|(_, v)| *v).unwrap_or(0.0);
         let current_tx = self.tx_history.last().map(|(_, v)| *v).unwrap_or(0.0);
@@ -106,8 +65,8 @@ impl NetworkGraph {
             Dataset::default()
                 .name(format!(
                     "RX: {} All: {}",
-                    Self::format_rate(current_rx),
-                    Self::format_total(self.total_rx)
+                    format_rate(current_rx),
+                    format_total(self.total_rx)
                 ))
                 .marker(symbols::Marker::Braille)
                 .graph_type(GraphType::Line)
@@ -116,8 +75,8 @@ impl NetworkGraph {
             Dataset::default()
                 .name(format!(
                     "TX: {} All: {}",
-                    Self::format_rate(current_tx),
-                    Self::format_total(self.total_tx)
+                    format_rate(current_tx),
+                    format_total(self.total_tx)
                 ))
                 .marker(symbols::Marker::Braille)
                 .graph_type(GraphType::Line)
@@ -127,8 +86,8 @@ impl NetworkGraph {
 
         let y_labels = vec![
             Span::raw("0"),
-            Span::raw(Self::format_axis_label(max_val / 2.0)),
-            Span::raw(Self::format_axis_label(max_val)),
+            Span::raw(format_axis_label(max_val / 2.0)),
+            Span::raw(format_axis_label(max_val)),
         ];
 
         let time_span = (self.max_points as f64 * 2.0) as i32;

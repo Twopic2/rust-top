@@ -5,12 +5,9 @@ use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
 
 #[cfg(not(target_os = "macos"))]
 use std::process::Command;
-
 #[cfg(not(target_os = "macos"))]
-const KILOBYTE: usize = 1024;
-#[cfg(not(target_os = "macos"))]
-const MEGABYTE: usize = 10000;
-const GIGABYTE: f64 = 1024.0 * 1024.0 * 1024.0;
+use crate::tools::units::KILOBYTE;
+use crate::tools::units::GIGABYTE;
 
 
 pub struct SystemInfo;
@@ -86,11 +83,11 @@ impl SystemInfo {
         let mut cache_info = HashMap::new();
 
         if let Some(size) = l1_cache_size() {
-            cache_info.insert("L1", format!("{} KB", size / KILOBYTE));
+            cache_info.insert("L1", format!("{} KB", size / KILOBYTE as usize));
         }
 
         if let Some(size) = l2_cache_size() {
-            cache_info.insert("L2", format!("{} KB", size / KILOBYTE));
+            cache_info.insert("L2", format!("{} KB", size / KILOBYTE as usize));
         }
         
         if let Some(size) = Self::lscpu_l3_cache() {

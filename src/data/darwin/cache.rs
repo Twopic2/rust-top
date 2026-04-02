@@ -1,8 +1,7 @@
 use ratatui::text::Line;
 use sysctl::Sysctl;
 
-const KILOBYTE: usize = 1024;
-const MEGABYTE: usize = 1024 * 1024;
+use crate::tools::units::{KILOBYTE, MEGABYTE};
 
 #[cfg(target_os = "macos")]
 pub struct CacheMac;
@@ -24,22 +23,22 @@ impl CacheMac {
         let mut levels = Vec::new();
 
         if let Some(size) = get_cache_size("hw.perflevel0.l1icachesize") {
-            levels.push(format!("P-L1i: {} KB", size / KILOBYTE));
+            levels.push(format!("P-L1i: {} KB", size / KILOBYTE as usize));
         }
         if let Some(size) = get_cache_size("hw.perflevel0.l1dcachesize") {
-            levels.push(format!("P-L1d: {} KB", size / KILOBYTE));
+            levels.push(format!("P-L1d: {} KB", size / KILOBYTE as usize));
         }
         if let Some(size) = get_cache_size("hw.perflevel0.l2cachesize") {
-            levels.push(format!("P-L2: {} MB", size / MEGABYTE));
+            levels.push(format!("P-L2: {} MB", size / MEGABYTE as usize));
         }
         if let Some(size) = get_cache_size("hw.perflevel1.l1icachesize") {
-            levels.push(format!("E-L1i: {} KB", size / KILOBYTE));
+            levels.push(format!("E-L1i: {} KB", size / KILOBYTE as usize));
         }
         if let Some(size) = get_cache_size("hw.perflevel1.l1dcachesize") {
-            levels.push(format!("E-L1d: {} KB", size / KILOBYTE));
+            levels.push(format!("E-L1d: {} KB", size / KILOBYTE as usize));
         }
         if let Some(size) = get_cache_size("hw.perflevel1.l2cachesize") {
-            levels.push(format!("E-L2: {} MB", size / MEGABYTE));
+            levels.push(format!("E-L2: {} MB", size / MEGABYTE as usize));
         }
 
         levels

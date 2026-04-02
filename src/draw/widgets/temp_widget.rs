@@ -8,9 +8,6 @@ use ratatui::{
 
 use crate::data::temp::TempData;
 
-/*
-TempWidget just lists the names of each component whether thats cpus/gpus/ram/disk/nics
-*/
 
 #[derive(Default)]
 pub struct TempWidget {

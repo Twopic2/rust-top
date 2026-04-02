@@ -3,6 +3,7 @@ mod draw;
 mod app;
 mod event;
 mod processes;
+mod tools;
 
 use app::App;
 use std::io;
