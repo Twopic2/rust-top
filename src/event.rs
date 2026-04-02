@@ -1,4 +1,5 @@
 use std::io;
+use std::time::Instant;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind};
 use sysinfo::System;
 use crate::draw::widgets::refresh_ticker::{TickButton, TickCounter};
@@ -13,30 +14,38 @@ pub fn handle_events(
     popup: &mut AboutPopUp,
     sys: &mut System,
 ) -> io::Result<bool> {
-    let tick_rate = tick_button.get_duration();
+    let deadline = Instant::now() + tick_button.get_duration();
 
-    if event::poll(tick_rate)? {
-        match event::read()? {
-            Event::Key(key) if key.kind == KeyEventKind::Press => {
-                return Ok(keystroke_type(key, tick_button, process_widget, taskbar, popup, sys));
-            }
-            Event::Mouse(mouse) => {
-                mouse_ticker_click(mouse, tick_button);
-                if let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
-                    process_widget.handle_click(mouse.column, mouse.row);
-                    if let Some(ProcessCommands::Kill) = taskbar.handle_click(mouse) {
-                        let pid = process_widget.selected_pid;
-                        if pid != 0 {
-                            taskbar.signal_process(process_widget, sys);
-                            process_widget.delete_table_entry(pid);
+    loop {
+        let remaining = deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Ok(false);
+        }
+
+        if event::poll(remaining)? {
+            match event::read()? {
+                Event::Key(key) if key.kind == KeyEventKind::Press => {
+                    if keystroke_type(key, tick_button, process_widget, taskbar, popup, sys) {
+                        return Ok(true);
+                    }
+                }
+                Event::Mouse(mouse) => {
+                    mouse_ticker_click(mouse, tick_button);
+                    if let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
+                        process_widget.handle_click(mouse.column, mouse.row);
+                        if let Some(ProcessCommands::Kill) = taskbar.handle_click(mouse) {
+                            let pid = process_widget.selected_pid;
+                            if pid != 0 {
+                                taskbar.signal_process(process_widget, sys);
+                                process_widget.delete_table_entry(pid);
+                            }
                         }
                     }
                 }
+                _ => {}
             }
-            _ => {}
         }
     }
-    Ok(false)
 }
 
 fn mouse_ticker_click(event: MouseEvent, tick_button: &mut TickButton) {
