@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use ratatui::{
     Frame,
     layout::Rect,
@@ -67,30 +68,16 @@ impl ColorScheme {
 }
 
 pub struct MultiCoreGraph {
-    cores: Vec<Vec<f64>>,
-    color_scheme: ColorScheme,
+    pub cores: IndexMap<usize, f64>,
+    pub color_scheme: ColorScheme,
 }
 
 impl MultiCoreGraph {
     pub fn new(num_cores: usize, color_scheme: ColorScheme) -> Self {
+        let cores = (0..num_cores).map(|i| (i, 0.0)).collect();
         Self {
-            cores: vec![Vec::new(); num_cores],
+            cores,
             color_scheme,
-        }
-    }
-
-    pub fn push(&mut self, core_index: usize, usage: f64) {
-        if let Some(core_data) = self.cores.get_mut(core_index) {
-            core_data.push(usage);
-        }
-    }
-
-    fn trim_to_width(&mut self, max_points: usize) {
-        for core_data in &mut self.cores {
-            if core_data.len() > max_points {
-                let excess = core_data.len() - max_points;
-                core_data.drain(0..excess);
-            }
         }
     }
 
@@ -111,15 +98,6 @@ impl MultiCoreGraph {
             return;
         }
 
-        let label_width = 10;
-        let min_bar_width = 10;
-        let cores_per_row = (inner_area.width as usize / (label_width + min_bar_width)).max(1);
-        let bar_width = (inner_area.width as usize / cores_per_row).saturating_sub(label_width);
-
-        let max_points = bar_width.max(10);
-
-        self.trim_to_width(max_points);
-
         let lines = self.generate_core_grid(inner_area.width as usize, inner_area.height as usize);
         let paragraph = Paragraph::new(lines);
         frame.render_widget(paragraph, inner_area);
@@ -137,20 +115,15 @@ impl MultiCoreGraph {
         let cores_per_row = (width / (label_width + min_bar_width)).max(1);
         let bar_width = (width / cores_per_row).saturating_sub(label_width);
 
-        for chunk_idx in 0..(self.cores.len() + cores_per_row - 1) / cores_per_row {
+        let all_cores: Vec<(usize, f64)> = self.cores.iter().map(|(&k, &v)| (k, v)).collect();
+
+        for chunk in all_cores.chunks(cores_per_row) {
             if lines.len() >= height {
                 break;
             }
 
-            let start_idx = chunk_idx * cores_per_row;
-            let end_idx = (start_idx + cores_per_row).min(self.cores.len());
-            let chunk = &self.cores[start_idx..end_idx];
-
             let mut spans = Vec::new();
-
-            for (i, core_data) in chunk.iter().enumerate() {
-                let core_idx = start_idx + i;
-                let current = core_data.last().unwrap_or(&0.0);
+            for (i, (core_idx, current)) in chunk.iter().enumerate() {
                 let color = self.color_scheme.get_gradient_color(*current);
 
                 spans.push(Span::styled(

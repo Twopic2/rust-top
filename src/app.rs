@@ -124,7 +124,7 @@ impl App {
         let core_usages = SystemInfo::get_core_usages(&mut self.sys);
 
         for (i, usage) in core_usages.iter().enumerate() {
-            self.core_graph.push(i, *usage);
+            self.core_graph.cores.insert(i, *usage);
         }
 
         self.total_cpu_bar.update(&core_usages);

@@ -9,7 +9,7 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::draw::widgets::process_table::ProcessTable;
+use crate::{draw::widgets::process_table::ProcessTable, processes::processdata::CollectProcessData};
 
 pub type Signals = SignalsInfo<SignalOnly>;
 
@@ -17,6 +17,7 @@ pub type Signals = SignalsInfo<SignalOnly>;
 pub enum ProcessCommands {
     Select,
     Kill,
+    Info,
 }
 
 pub struct ProcessTaskBar {
@@ -25,9 +26,10 @@ pub struct ProcessTaskBar {
 }
 
 impl ProcessTaskBar {
-    const BUTTONS: [(&'static str, ProcessCommands); 2] = [
+    const BUTTONS: [(&'static str, ProcessCommands); 3] = [
         ("Select", ProcessCommands::Select),
         ("Kill",   ProcessCommands::Kill),
+        ("Info", ProcessCommands::Info),
     ];
 
     pub fn new() -> Self {
@@ -43,14 +45,14 @@ impl ProcessTaskBar {
         let mut spans: Vec<Span> = Vec::new();
 
         for (label, cmd) in Self::BUTTONS {
-            let active = if selected_pid != 0 {
-                cmd == ProcessCommands::Kill
-            } else {
-                cmd == ProcessCommands::Select
+            let active = match(selected_pid != 0, cmd) {
+                (true,  ProcessCommands::Kill | ProcessCommands::Info) => true,
+                (false, ProcessCommands::Select) => true,
+                _ => false,
             };
 
             let label_style = if active {
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD)
+                Style::default().fg(Color::LightRed).add_modifier(Modifier::BOLD)
             } else {
                 Style::default().fg(Color::DarkGray)
             };
@@ -88,6 +90,8 @@ impl ProcessTaskBar {
         match self.command {
             ProcessCommands::Select => {}
             ProcessCommands::Kill => Self::kill_proc(Pid::from_u32(pid), sys),
+            ProcessCommands::Info => Self::info_proc(Pid::from_u32(pid)),
+            _ => {}
         }
     }
 
@@ -95,5 +99,10 @@ impl ProcessTaskBar {
         if let Some(process) = sys.process(pid) {
             process.kill();
         }
+    }
+
+    fn info_proc(pid: Pid) {
+
+
     }
 }

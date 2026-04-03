@@ -40,7 +40,6 @@ pub enum SearchState {
     NoSearch,
     Searching,
     FilterApplied,
-    ClearSearch,
 }
 
 pub struct ProcessTable {
@@ -49,10 +48,10 @@ pub struct ProcessTable {
     sort_order: SortOrder,
     pub search_state: SearchState,
     pub search_input: String,
-    collector: CollectProcessData,
-    proc_table: Vec<CollectProcessData>,
+    pub collector: CollectProcessData,
+    pub proc_table: Vec<CollectProcessData>,
     pub filtered_table: Vec<CollectProcessData>,
-    sorted_proc: Vec<CollectProcessData>,
+    pub sorted_proc: Vec<CollectProcessData>,
     render_area: Rect,
 }
 
@@ -294,5 +293,56 @@ impl Ord for OrderedFloat {
         } else {
             ordering
         }
+    }
+}
+
+pub struct ProcInfoPopup {
+    pub visable: bool, 
+    pub selected_pid: u32,
+    pub total_proc: ProcessTable,
+    pub selected_proc: CollectProcessData,
+    pub sys: System,
+}
+
+impl ProcInfoPopup {
+    pub fn new() -> Self {
+        Self {
+            visable: false,
+            selected_pid: 0,
+            total_proc: ProcessTable::new(),
+            selected_proc: CollectProcessData::default(),
+            sys: System::new(),
+
+        }
+    }
+
+    pub fn get_data(&mut self) {
+        self.total_proc.proc_table = self.total_proc.collector.process_data(&mut self.sys); 
+
+        let source = if self.total_proc.is_searching() {
+            &self.total_proc.filtered_table
+        } else {
+            &self.total_proc.proc_table
+        };
+
+        let temp_data = self.total_proc.get_sorted_processes(source.to_vec());
+
+        self.selected_proc = temp_data.into_iter().find(|p| p.pid == self.selected_pid).unwrap();
+    }
+
+    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
+        if !self.visable { return; }
+
+        Self::get_data(self);   
+
+        let blur_line = "░".repeat(area.width as usize);
+        let blur_lines: Vec<Line> = (0..area.height)
+            .map(|_| Line::from(blur_line.clone()))
+            .collect();
+        frame.render_widget(
+            Paragraph::new(blur_lines)
+                .style(Style::default().fg(Color::DarkGray).bg(Color::Black)),
+            area,
+        );
     }
 }
