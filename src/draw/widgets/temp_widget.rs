@@ -19,37 +19,23 @@ pub struct TempWidget {
 
 impl TempWidget {
     pub fn filter(&mut self) {
-        #[cfg(target_os = "macos")]
         if let Some(all_temps) = TempData::all_temps() {
             let mut has_cpu = false;
             let mut has_disk = false;
 
             for (label, temp_opt) in all_temps {
-                if let Some(_temp) = temp_opt {
-                    if !has_cpu && label.contains("tdie") {
-                        self.cpu_name = Some(label);
-                        has_cpu = true;
-                        self.line_count += 1;
-                    } else if !has_disk && label.contains("NAND") {
-                        self.disk_name = Some(label);
-                        has_disk = true;
-                        self.line_count += 1;
-                    }
-                }
-            }
-        }
+                if temp_opt.is_none() { continue; }
 
-        #[cfg(target_os = "linux")]
-        if let Some(all_temps) = TempData::all_temps() {
-            for (label, _temp_out) in all_temps {
-                if self.cpu_name.is_none()
-                    && (label.contains("coretemp") || label.contains("Package id")
-                        || label.contains("k10temp") || label.contains("Tdie"))
+                if !has_cpu && (label.contains("tdie") || label.contains("Tdie")
+                    || label.contains("coretemp") || label.contains("Package id")
+                    || label.contains("k10temp"))
                 {
                     self.cpu_name = Some(label);
+                    has_cpu = true;
                     self.line_count += 1;
-                } else if self.disk_name.is_none() && label.contains("nvme") {
+                } else if !has_disk && (label.contains("NAND") || label.contains("nvme")) {
                     self.disk_name = Some(label);
+                    has_disk = true;
                     self.line_count += 1;
                 } else if self.nic_name.is_none() && label.contains("iwlwifi") {
                     self.nic_name = Some(label);

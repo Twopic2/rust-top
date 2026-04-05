@@ -3,11 +3,11 @@ use std::time::{Duration, Instant};
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind};
 use sysinfo::System;
 use crate::draw::widgets::refresh_ticker::{TickButton, TickCounter};
-use crate::draw::widgets::process_table::{ProcessTable, SearchState};
+use crate::draw::widgets::process_table::{ProcessTable, ProcInfoPopup, SearchState};
 use crate::draw::widgets::process_taskbar::{ProcessTaskBar, ProcessCommands};
 use crate::draw::widgets::about_popup::AboutPopUp;
 
-pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessTable, taskbar: &mut ProcessTaskBar, popup: &mut AboutPopUp, sys: &mut System) -> io::Result<bool> {
+pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessTable, taskbar: &mut ProcessTaskBar, info: &mut ProcInfoPopup, popup: &mut AboutPopUp, sys: &mut System) -> io::Result<bool> {
     let tick_rate = tick_button.get_duration();
     let last_tick = Instant::now();
 
@@ -20,7 +20,7 @@ pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessT
         if event::poll(timeout)? {
             match event::read()? {
                 Event::Key(key) if key.kind == KeyEventKind::Press => {
-                    if keystroke_type(key, tick_button, process_widget, taskbar, popup, sys) {
+                    if keystroke_type(key, tick_button, process_widget, taskbar, info, popup, sys) {
                         return Ok(true);
                     }
                 }
@@ -60,6 +60,7 @@ fn keystroke_type(
     tick_button: &mut TickButton,
     process_widget: &mut ProcessTable,
     taskbar: &mut ProcessTaskBar,
+    info: &mut ProcInfoPopup,
     popup: &mut AboutPopUp,
     sys: &mut System,
 ) -> bool {
@@ -102,6 +103,14 @@ fn keystroke_type(
             if pid != 0 {
                 taskbar.signal_process(process_widget, sys);
                 process_widget.delete_table_entry(pid);
+            }
+            false
+        }
+        KeyCode::Char('i') => {
+            let pid = process_widget.selected_pid;
+            if pid != 0 {
+                info.selected_pid = pid;
+                info.visable = !info.visable;
             }
             false
         }

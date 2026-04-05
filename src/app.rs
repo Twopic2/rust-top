@@ -6,7 +6,7 @@ use sysinfo::System;
 use crate::data::temp::TempData;
 use crate::{event::handle_events};
 use crate::draw::widgets::refresh_ticker::TickButton;
-use crate::draw::widgets::process_table::ProcessTable;
+use crate::draw::widgets::process_table::{ProcessTable, ProcInfoPopup};
 use crate::draw::widgets::process_taskbar::ProcessTaskBar;
 use crate::draw::widgets::about_popup::AboutPopUp;
 use ratatui::{
@@ -45,6 +45,7 @@ pub struct App {
     duration_control: TickButton,
     process_tree: ProcessTable,
     process_taskbar: ProcessTaskBar,
+    proc_info_popup: ProcInfoPopup,
     sys: System,
     popup: AboutPopUp,
     ntp_time: String,
@@ -114,6 +115,7 @@ impl App {
             duration_control,
             process_tree,
             process_taskbar,
+            proc_info_popup: ProcInfoPopup::new(),
             sys,
             popup,
             ntp_time: "--:--:--".to_string(),
@@ -153,7 +155,7 @@ impl App {
 
             self.draw(terminal)?;
 
-            if handle_events(&mut self.duration_control, &mut self.process_tree, &mut self.process_taskbar, &mut self.popup, &mut self.sys)? {
+            if handle_events(&mut self.duration_control, &mut self.process_tree, &mut self.process_taskbar, &mut self.proc_info_popup, &mut self.popup, &mut self.sys)? {
                 break;
             }
         }
@@ -161,6 +163,7 @@ impl App {
     }
     
     fn draw(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+        self.proc_info_popup.refresh(&mut self.sys);
         terminal.draw(|frame| {
             let instructions = Line::from(vec![
                 " Quit ".red().bold().into(),
@@ -325,6 +328,7 @@ impl App {
             self.process_tree.render(frame, proc_split[0]);
             self.process_taskbar.render(frame, proc_split[1], self.process_tree.selected_pid);
 
+            self.proc_info_popup.render(frame, frame.area());
             self.popup.render(frame, frame.area());
         })?;
         Ok(())

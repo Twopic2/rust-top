@@ -3,11 +3,7 @@ use std::collections::BTreeMap;
 use std::cmp::Ordering;
 use sysinfo::System;
 use ratatui::{
-    Frame,
-    style::{Color, Style, Modifier},
-    text::Line,
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph},
-    layout::{Constraint, Layout, Rect},
+    Frame, layout::{Alignment, Constraint, Layout, Rect}, style::{Color, Modifier, Style}, text::Line, widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph}
 };
 
 #[derive(Clone, Copy)]
@@ -296,12 +292,10 @@ impl Ord for OrderedFloat {
     }
 }
 
-pub struct ProcInfoPopup {
-    pub visable: bool, 
+pub struct ProcInfoPopup{
+    pub visable: bool,
     pub selected_pid: u32,
     pub total_proc: ProcessTable,
-    pub selected_proc: CollectProcessData,
-    pub sys: System,
 }
 
 impl ProcInfoPopup {
@@ -310,30 +304,20 @@ impl ProcInfoPopup {
             visable: false,
             selected_pid: 0,
             total_proc: ProcessTable::new(),
-            selected_proc: CollectProcessData::default(),
-            sys: System::new(),
-
         }
     }
 
-    pub fn get_data(&mut self) {
-        self.total_proc.proc_table = self.total_proc.collector.process_data(&mut self.sys); 
+    pub fn refresh(&mut self, sys: &mut System) {
+        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, false);
+        self.total_proc.proc_table = self.total_proc.collector.process_data(sys);
+    }
 
-        let source = if self.total_proc.is_searching() {
-            &self.total_proc.filtered_table
-        } else {
-            &self.total_proc.proc_table
-        };
-
-        let temp_data = self.total_proc.get_sorted_processes(source.to_vec());
-
-        self.selected_proc = temp_data.into_iter().find(|p| p.pid == self.selected_pid).unwrap();
+    fn find_selected(&self) -> Option<&CollectProcessData> {
+        self.total_proc.proc_table.iter().find(|p| p.pid == self.selected_pid)
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
         if !self.visable { return; }
-
-        Self::get_data(self);   
 
         let blur_line = "░".repeat(area.width as usize);
         let blur_lines: Vec<Line> = (0..area.height)
@@ -344,5 +328,28 @@ impl ProcInfoPopup {
                 .style(Style::default().fg(Color::DarkGray).bg(Color::Black)),
             area,
         );
+
+        let info_block = Block::new().title("Process Info")
+        .title_style(Style::new().red().bold())
+        .title_alignment(Alignment::Center);
+
+        let info_area = area.centered(Constraint::Percentage(60), Constraint::Percentage(40));
+
+        let inner = info_block.inner(info_area);
+        frame.render_widget(Clear, info_area);
+        frame.render_widget(info_block, info_area);
+
+        if let Some(p) = self.find_selected() {
+            let lines = vec![
+                Line::from(format!("PID:     {}", p.pid)),
+                Line::from(format!("Program: {}", p.program)),
+                Line::from(format!("Command: {}", p.command)),
+                Line::from(format!("CPU:     {:.1}%", p.cpu_usage_percent)),
+                Line::from(format!("MEM:     {:.1}%", p.mem_usage_percent)),
+                Line::from(format!("User:    {}", p.user)),
+            ];
+
+            frame.render_widget(Paragraph::new(lines), inner);
+        }
     }
 }
