@@ -9,7 +9,7 @@ use ratatui::{
     widgets::Paragraph,
 };
 
-use crate::{draw::widgets::process_table::ProcessTable, processes::processdata::CollectProcessData};
+use crate::draw::widgets::process_table::{ProcessTable, ProcInfoPopup};
 
 pub type Signals = SignalsInfo<SignalOnly>;
 
@@ -84,14 +84,13 @@ impl ProcessTaskBar {
         None
     }
 
-    pub fn signal_process(&self, process_widget: &ProcessTable, sys: &mut System) {
+    pub fn signal_process(&self, process_widget: &ProcessTable, info: &mut ProcInfoPopup, sys: &mut System) {
         let pid = process_widget.selected_pid;
         if pid == 0 { return; }
         match self.command {
             ProcessCommands::Select => {}
             ProcessCommands::Kill => Self::kill_proc(Pid::from_u32(pid), sys),
-            ProcessCommands::Info => Self::info_proc(Pid::from_u32(pid)),
-            _ => {}
+            ProcessCommands::Info => Self::info_proc(pid, info),
         }
     }
 
@@ -101,8 +100,8 @@ impl ProcessTaskBar {
         }
     }
 
-    fn info_proc(pid: Pid) {
-
-
+    fn info_proc(pid: u32, info: &mut ProcInfoPopup) {
+        info.selected_pid = pid;
+        info.visable = !info.visable;
     }
 }

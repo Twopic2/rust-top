@@ -28,12 +28,18 @@ pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessT
                     mouse_ticker_click(mouse, tick_button);
                     if let MouseEventKind::Down(MouseButton::Left) = mouse.kind {
                         process_widget.handle_click(mouse.column, mouse.row);
-                        if let Some(ProcessCommands::Kill) = taskbar.handle_click(mouse) {
-                            let pid = process_widget.selected_pid;
-                            if pid != 0 {
-                                taskbar.signal_process(process_widget, sys);
-                                process_widget.delete_table_entry(pid);
+                        match taskbar.handle_click(mouse) {
+                            Some(ProcessCommands::Kill) => {
+                                let pid = process_widget.selected_pid;
+                                if pid != 0 {
+                                    taskbar.signal_process(process_widget, info, sys);
+                                    process_widget.delete_table_entry(pid);
+                                }
                             }
+                            Some(ProcessCommands::Info) => {
+                                taskbar.signal_process(process_widget, info, sys);
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -101,7 +107,7 @@ fn keystroke_type(
         KeyCode::Char('k') => {
             let pid = process_widget.selected_pid;
             if pid != 0 {
-                taskbar.signal_process(process_widget, sys);
+                taskbar.signal_process(process_widget, info, sys);
                 process_widget.delete_table_entry(pid);
             }
             false

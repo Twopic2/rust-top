@@ -82,13 +82,17 @@ impl MultiCoreGraph {
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect, sys: &mut System) {
-        let cpu_freq = SystemInfo::display_cpu_frequency(sys).unwrap_or(0);
-        let cpu_freq = format!("{:.2} GHz", cpu_freq as f64 / 1000.0);
+        let cpu_freq = match SystemInfo::display_cpu_frequency(sys) {
+            Some(cpu_freq) => cpu_freq,
+            None => 0,
+        };
+        
+        let formated_freq = format!("{:.2} GHz", cpu_freq as f64 / 1000.0);
 
         let block = Block::default()
             .borders(Borders::ALL)
             .title("Cpu Cores")
-            .title(Line::from(cpu_freq).right_aligned())
+            .title(Line::from(formated_freq).right_aligned())
             .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
 
         let inner_area = block.inner(area);
