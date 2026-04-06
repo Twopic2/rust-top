@@ -20,22 +20,22 @@ pub struct TempWidget {
 impl TempWidget {
     pub fn filter(&mut self) {
         if let Some(all_temps) = TempData::all_temps() {
-            let mut has_cpu = false;
-            let mut has_disk = false;
+            let mut cpu_line_stop = false;
+            let mut disk_line_stop = false;
 
             for (label, temp_opt) in all_temps {
                 if temp_opt.is_none() { continue; }
 
-                if !has_cpu && (label.contains("tdie") || label.contains("Tdie")
+                if !cpu_line_stop && (label.contains("tdie") || label.contains("Tdie")
                     || label.contains("coretemp") || label.contains("Package id")
                     || label.contains("k10temp"))
                 {
                     self.cpu_name = Some(label);
-                    has_cpu = true;
+                    cpu_line_stop = true;
                     self.line_count += 1;
-                } else if !has_disk && (label.contains("NAND") || label.contains("nvme")) {
+                } else if !disk_line_stop && (label.contains("NAND") || label.contains("nvme")) {
                     self.disk_name = Some(label);
-                    has_disk = true;
+                    disk_line_stop = true;
                     self.line_count += 1;
                 } else if self.nic_name.is_none() && label.contains("iwlwifi") {
                     self.nic_name = Some(label);
