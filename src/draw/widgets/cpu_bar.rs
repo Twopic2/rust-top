@@ -7,7 +7,6 @@ use ratatui::{
 };
 
 use crate::data::temp::TempData;
-use crate::data::temp::FilteredTemps;
 
 pub enum BarColorScheme {
     Green,
