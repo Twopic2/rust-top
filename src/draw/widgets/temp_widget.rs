@@ -14,6 +14,7 @@ pub struct TempWidget {
     cpu_name:   Option<String>,
     disk_name:  Option<String>,
     nic_name:   Option<String>,
+    ddr_name: Option<String>,
     line_count: u8,
 }
 
@@ -22,6 +23,8 @@ impl TempWidget {
         if let Some(all_temps) = TempData::all_temps() {
             let mut cpu_line_stop = false;
             let mut disk_line_stop = false;
+            let mut ddr_line_stop = false;
+            let mut nic_line_stop = false;
 
             for (label, temp_opt) in all_temps {
                 if temp_opt.is_none() { continue; }
@@ -37,8 +40,14 @@ impl TempWidget {
                     self.disk_name = Some(label);
                     disk_line_stop = true;
                     self.line_count += 1;
-                } else if self.nic_name.is_none() && label.contains("iwlwifi") {
+                } else if !nic_line_stop && label.contains("iwlwifi") 
+                && label.contains("MT") // MediaTek
+                {
                     self.nic_name = Some(label);
+                    self.line_count += 1;
+                } else if !ddr_line_stop && label.contains("spd") {
+                    self.ddr_name = Some(label);
+                    ddr_line_stop = true;
                     self.line_count += 1;
                 }
             }
@@ -50,7 +59,7 @@ impl TempWidget {
     }
 
     pub fn get_length(&self) -> u16 {
-        let max = [&self.cpu_name, &self.disk_name, &self.nic_name]
+        let max = [&self.cpu_name, &self.disk_name, &self.nic_name, &self.ddr_name]
             .iter()
             .filter_map(|n| n.as_ref())
             .map(|n| n.len() + 10)
@@ -68,7 +77,8 @@ impl TempWidget {
                 if let Some(temp) = temp_opt {
                     let is_shown = self.cpu_name.as_deref() == Some(label.as_str())
                         || self.disk_name.as_deref() == Some(label.as_str())
-                        || self.nic_name.as_deref() == Some(label.as_str());
+                        || self.nic_name.as_deref() == Some(label.as_str())
+                        || self.ddr_name.as_deref() == Some(label.as_str());
 
                     if is_shown {
                         lines.push(Line::from(vec![

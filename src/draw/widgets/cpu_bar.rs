@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use crate::data::temp::TempData;
+use crate::data::temp::FilteredTemps;
 
 pub enum BarColorScheme {
     Green,
@@ -102,6 +103,7 @@ pub struct TempBar {
     cpu_temp: Option<f32>,
     disk_temp: Option<f32>,
     nic_temp: Option<f32>,
+    ddr_temp: Option<f32>,
 }
 
 impl TempBar {
@@ -111,6 +113,7 @@ impl TempBar {
             cpu_temp: None,
             disk_temp: None,
             nic_temp: None,
+            ddr_temp: None,
         }
     }
 
@@ -141,12 +144,25 @@ impl TempBar {
                         self.cpu_temp = Some(temp);
                     } else if label.contains("nvme") {
                         self.disk_temp = Some(temp);
-                    } else if label.contains("iwlwifi") {
+                    } else if label.contains("iwlwifi") && 
+                    label.contains("MT") // MediaTek 
+                    {
+                        self.nic_temp = Some(temp);
+                    } else if label.contains("spd") {
                         self.nic_temp = Some(temp);
                     }
                 }
             }
         }
+    }
+
+    pub fn get_height(&self) -> u16 {
+        let count = [self.cpu_temp, self.disk_temp, self.nic_temp, self.ddr_temp]
+            .iter()
+            .filter(|t| t.is_some())
+            .count();
+        let rows = (count + 1) / 2; 
+        (rows as u16).max(1) + 2 
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
@@ -162,95 +178,53 @@ impl TempBar {
             return;
         }
 
-        let mut spans = Vec::new();
+        let half_width = inner_area.width as usize / 2;
 
-        if let Some(cpu_temp) = self.cpu_temp {
-            let temp_percentage = (cpu_temp / 100.0 * 100.0).min(100.0).max(0.0);
-            let color = self.color_scheme.get_color(temp_percentage as f64);
+        let sensors: &[(&str, Option<f32>)] = &[
+            ("CPU", self.cpu_temp),
+            ("Disk", self.disk_temp),
+            ("Nic", self.nic_temp),
+            ("DDR", self.ddr_temp),
+        ];
 
-            spans.push(Span::styled(
-                format!("CPU: {:>4.1}°C ", cpu_temp),
-                Style::default().fg(color).add_modifier(Modifier::BOLD)
-            ));
+        let active: Vec<_> = sensors.iter()
+            .filter_map(|(label, temp_opt)| temp_opt.map(|t| (*label, t)))
+            .collect();
 
-            let bar_width = (inner_area.width as usize / 2).saturating_sub(14);
-            let filled = ((temp_percentage / 100.0) * bar_width as f32) as usize;
-            let empty = bar_width.saturating_sub(filled);
-
-            if filled > 0 {
-                spans.push(Span::styled(
-                    "█".repeat(filled),
-                    Style::default().fg(color)
-                ));
+        let mut lines: Vec<Line> = Vec::new();
+        for chunk in active.chunks(2) {
+            let mut spans = Vec::new();
+            for (label, temp) in chunk {
+                let bar_width = half_width.saturating_sub(label.len() + 11);
+                spans.extend(Self::temp_bar_spans(label, *temp, bar_width, &self.color_scheme));
+                spans.push(Span::raw(" "));
             }
-            if empty > 0 {
-                spans.push(Span::styled(
-                    "░".repeat(empty),
-                    Style::default().fg(Color::DarkGray)
-                ));
-            }
-
-            spans.push(Span::raw(" "));
+            lines.push(Line::from(spans));
         }
 
-        if let Some(disk_temp) = self.disk_temp {
-            let temp_percentage = (disk_temp / 100.0 * 100.0).min(100.0).max(0.0);
-            let color = self.color_scheme.get_color(temp_percentage as f64);
-
-            spans.push(Span::styled(
-                format!("Disk: {:>4.1}°C ", disk_temp),
-                Style::default().fg(color).add_modifier(Modifier::BOLD)
-            ));
-
-            let bar_width = (inner_area.width as usize / 2).saturating_sub(15);
-            let filled = ((temp_percentage / 100.0) * bar_width as f32) as usize;
-            let empty = bar_width.saturating_sub(filled);
-
-            if filled > 0 {
-                spans.push(Span::styled(
-                    "█".repeat(filled),
-                    Style::default().fg(color)
-                ));
-            }
-            if empty > 0 {
-                spans.push(Span::styled(
-                    "░".repeat(empty),
-                    Style::default().fg(Color::DarkGray)
-                ));
-            }
-        }
-
-        if let Some(nic_temp) = self.nic_temp {
-            let temp_percentage = (nic_temp / 100.0 * 100.0).min(100.0).max(0.0);
-            let color = self.color_scheme.get_color(temp_percentage as f64);
-
-            spans.push(Span::styled(
-                format!("Nic: {:>4.1}°C ", nic_temp),
-                Style::default().fg(color).add_modifier(Modifier::BOLD)
-            ));
-
-            let bar_width = (inner_area.width as usize / 2).saturating_sub(15);
-            let filled = ((temp_percentage / 100.0) * bar_width as f32) as usize;
-            let empty = bar_width.saturating_sub(filled);
-
-            if filled > 0 {
-                spans.push(Span::styled(
-                    "█".repeat(filled),
-                    Style::default().fg(color)
-                ));
-            }
-            if empty > 0 {
-                spans.push(Span::styled(
-                    "░".repeat(empty),
-                    Style::default().fg(Color::DarkGray)
-                ));
-            }
-        }
-
-        if !spans.is_empty() {
-            let line = Line::from(spans);
-            let paragraph = Paragraph::new(vec![line]);
+        if !lines.is_empty() {
+            let paragraph = Paragraph::new(lines);
             frame.render_widget(paragraph, inner_area);
         }
+    }
+
+    fn temp_bar_spans(label: &str, temp: f32, bar_width: usize, color_scheme: &BarColorScheme) -> Vec<Span<'static>> {
+        let temp_percentage = (temp / 100.0 * 100.0).min(100.0).max(0.0);
+        let color = color_scheme.get_color(temp_percentage as f64);
+        let filled = ((temp_percentage / 100.0) * bar_width as f32) as usize;
+        let empty = bar_width.saturating_sub(filled);
+
+        let mut spans = Vec::new();
+        spans.push(Span::styled(
+            format!("{}: {:>4.1}°C ", label, temp),
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
+        ));
+        if filled > 0 {
+            spans.push(Span::styled("█".repeat(filled), Style::default().fg(color)));
+        }
+        if empty > 0 {
+            spans.push(Span::styled("░".repeat(empty), Style::default().fg(Color::DarkGray)));
+        }
+        spans
     }
 }

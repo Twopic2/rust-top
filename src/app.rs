@@ -206,7 +206,7 @@ impl App {
             let cpu_info_height = (self.cpu_model_lines.len().max(self.cpu_cache_lines.len()).max(2) + 2) as u16;
 
             let temp_widget_height = if TempData::all_temps().is_some() {
-                self.temp_widget.get_height()
+                self.temp_widget.get_height().max(self.temp_bar.get_height())
             } else {
                 0
             };
@@ -214,7 +214,7 @@ impl App {
             let left_layout = Layout::vertical([
                 Constraint::Length(cpu_info_height),
                 Constraint::Length(cpu_cores_height),
-                Constraint::Length(3),
+                Constraint::Length(5),
                 Constraint::Length(temp_widget_height),
                 Constraint::Min(10),
             ]).split(layout[0]);
