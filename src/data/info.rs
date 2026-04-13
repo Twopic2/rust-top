@@ -142,20 +142,21 @@ impl SystemInfo {
     pub fn get_core_usages(sys: &mut System) -> Vec<f64> {
         sys.cpus().iter().map(|cpu| cpu.cpu_usage() as f64).collect()
     } 
-}
 
-pub trait OsInfo {
-    fn display_kernel(&self) -> String;
-    fn display_host_name(&self) -> String;
-}
-
-impl OsInfo for SystemInfo {
-    fn display_kernel(&self) -> String {
-        System::kernel_version().unwrap_or_else(|| String::from("No Kernel data available"))
+    pub fn display_kernel(&mut self) -> Option<String> {
+        if let Some(s) = System::kernel_version() {
+            Some(s)
+        } else {
+            None
+        }
     }
 
-    fn display_host_name(&self) -> String {
-        System::host_name().unwrap_or_else(|| String::from("No Os data available"))
+    pub fn display_host_name(&mut self) -> Option<String> {
+        if let Some(s) = System::host_name() {
+            Some(s)
+        } else {
+            None
+        }
     }
 }
 

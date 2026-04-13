@@ -21,7 +21,7 @@ use ratatui::{
 #[cfg(target_os = "macos")]
 use crate::data::darwin::cache::CacheMac;
 
-use crate::data::info::{OsInfo, SystemInfo};
+use crate::data::info::{SystemInfo};
 use crate::data::clock::local_time;
 use crate::data::disk::DiskData;
 use crate::draw::widgets::cpu_graph::{MultiCoreGraph, ColorScheme};
@@ -135,7 +135,7 @@ impl App {
         self.network_histogram.update();
 
         self.disk_data.refresh(&mut self.sys);
-        self.disk_graph.update(&mut self.disk_data, &mut self.sys);
+        self.disk_data.collect_all(&mut self.sys);
 
         self.process_tree.refresh(&mut self.sys);
     }
@@ -170,7 +170,7 @@ impl App {
                 "<Q/Esc> ".red().bold(),
             ]);
 
-            let hostname_output = self.sys_info.display_host_name();
+            let hostname_output = self.sys_info.display_host_name().unwrap();
 
             let outer_block = Block::bordered()
                 .title(Line::from(self.ntp_time.clone()).centered())
@@ -303,13 +303,13 @@ impl App {
 
             self.network_histogram.render(frame, left_layout[4]);
 
-            let disk_height = self.disk_graph.get_height();
+            let disk_height = self.disk_graph.get_height(&mut self.disk_data);
             let right_layout = Layout::vertical([
                 Constraint::Length(disk_height),
                 Constraint::Min(10),
             ]).split(layout[1]);
 
-            self.disk_graph.render(frame, right_layout[0]);
+            self.disk_graph.render(frame, right_layout[0], &mut self.disk_data);
 
             let proc_block = Block::new()
                 .borders(Borders::ALL)
