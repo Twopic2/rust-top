@@ -101,8 +101,8 @@ pub struct TempBar {
     color_scheme: BarColorScheme,
     cpu_temp: Option<f32>,
     disk_temp: Option<f32>,
-    nic_temp: Option<f32>,
     ddr_temp: Option<f32>,
+    nic_temp: Option<f32>,
 }
 
 impl TempBar {
@@ -111,8 +111,8 @@ impl TempBar {
             color_scheme,
             cpu_temp: None,
             disk_temp: None,
-            nic_temp: None,
             ddr_temp: None,
+            nic_temp: None,
         }
     }
 
@@ -143,12 +143,11 @@ impl TempBar {
                         self.cpu_temp = Some(temp);
                     } else if label.contains("nvme") {
                         self.disk_temp = Some(temp);
-                    } else if label.contains("iwlwifi") && 
-                    label.contains("MT") // MediaTek 
+                    } else if label.contains("iwlwifi") && label.contains("MT") // MediaTek 
                     {
                         self.nic_temp = Some(temp);
                     } else if label.contains("spd") {
-                        self.nic_temp = Some(temp);
+                        self.ddr_temp = Some(temp);
                     }
                 }
             }
@@ -156,7 +155,7 @@ impl TempBar {
     }
 
     pub fn get_height(&self) -> u16 {
-        let count = [self.cpu_temp, self.disk_temp, self.nic_temp, self.ddr_temp]
+        let count = [self.cpu_temp, self.disk_temp, self.ddr_temp, self.ddr_temp]
             .iter()
             .filter(|t| t.is_some())
             .count();
