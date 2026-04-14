@@ -1,6 +1,7 @@
 mod data;
 mod draw;
 mod app;
+mod collection;
 mod event;
 mod processes;
 mod tools;
