@@ -154,13 +154,28 @@ impl TempBar {
         }
     }
 
+    #[cfg(target_os = "linux")] 
     pub fn get_height(&self) -> u16 {
         let count = [self.cpu_temp, self.disk_temp, self.ddr_temp, self.ddr_temp]
             .iter()
             .filter(|t| t.is_some())
             .count();
+
         let rows = (count + 1) / 2; 
         (rows as u16).max(1) + 2 
+    }
+
+    #[cfg(target_os = "macos")]
+    pub fn get_height(&self) -> u16 {
+        let count = match (self.cpu_temp.is_some(), self.disk_temp.is_some()) {
+            (true, true) => 2 as u16,
+            (true, false) => 1 as u16,
+            (false, true) => 1 as u16,
+            (false, false) => 0 as u16,
+        };
+        
+        let rows = (count + 1) / 2; 
+        (rows as u16).max(1) + 2  
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {

@@ -124,7 +124,7 @@ impl App {
             let cpu_info_height = (self.collection.cpu_model_lines.len().max(self.collection.cpu_cache_lines.len()).max(2) + 2) as u16;
 
             let temp_widget_height = if TempData::all_temps().is_some() {
-                self.temp_widget.get_height().max(self.collection.temp_bar.get_height() + 1)
+                self.temp_widget.get_height().max(self.collection.temp_bar.get_height() + 2)
             } else {
                 0
             };
