@@ -8,7 +8,7 @@ use ratatui::{
 };
 
 use sysinfo::System;
-use crate::data::info::SystemInfo;
+use crate::data::cpu::CpuInfo;
 
 #[derive(Clone, Copy)]
 pub enum ColorScheme {
@@ -82,7 +82,7 @@ impl MultiCoreGraph {
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect, sys: &mut System) {
-        let cpu_freq = match SystemInfo::display_cpu_frequency(sys) {
+        let cpu_freq = match CpuInfo::display_cpu_frequency(sys) {
             Some(cpu_freq) => cpu_freq,
             None => 0,
         };

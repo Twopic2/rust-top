@@ -7,19 +7,15 @@ use ratatui::{
     layout::Constraint,
 };
 
-use crate::data::{disk::DiskData};
-use crate::data::info::SystemInfo;
+use crate::data::disk::DiskData;
+use crate::data::os::OsInfo;
 use crate::tools::units::format_bytes;
 
-pub struct DiskTable {
-    sys_info: SystemInfo,
-}
+pub struct DiskTable;
 
 impl DiskTable {
     pub fn new() -> Self {
-        Self {
-            sys_info: SystemInfo,
-        }
+        Self
     }
 
     pub fn get_height(&self, disk_data: &DiskData) -> u16 {
@@ -27,8 +23,7 @@ impl DiskTable {
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect, disk_data: &DiskData) {
-        let kernel_output = self.sys_info.display_kernel().unwrap();
-        let kernel_output = format!("Kernel {}", kernel_output);
+        let kernel_output = format!("Kernel {}", OsInfo::display_kernel().unwrap());
 
         let block = Block::default()
             .borders(Borders::ALL)
@@ -49,14 +44,14 @@ impl DiskTable {
         let header = Row::new(header_cells).height(1);
 
         let rows: Vec<Row> = (0..disk_data.disk_name.len()).map(|i| {
-        Row::new(vec![
-            Cell::from(disk_data.disk_name[i].as_str()).style(Style::default().fg(Color::White)),
-            Cell::from(disk_data.filesytem[i].as_str()).style(Style::default().fg(Color::Gray)),
-            Cell::from(disk_data.mount[i].as_str()).style(Style::default().fg(Color::Gray)),
-            Cell::from(format_bytes(disk_data.total[i])).style(Style::default().fg(Color::White)),
-            Cell::from(format_bytes(disk_data.available[i])).style(Style::default().fg(Color::White)),
-            Cell::from(format_bytes(disk_data.curr_read[i])).style(Style::default().fg(Color::Green)),
-            Cell::from(format_bytes(disk_data.curr_write[i])).style(Style::default().fg(Color::Red)),
+            Row::new(vec![
+                Cell::from(disk_data.disk_name[i].as_str()).style(Style::default().fg(Color::White)),
+                Cell::from(disk_data.filesytem[i].as_str()).style(Style::default().fg(Color::Gray)),
+                Cell::from(disk_data.mount[i].as_str()).style(Style::default().fg(Color::Gray)),
+                Cell::from(format_bytes(disk_data.total[i])).style(Style::default().fg(Color::White)),
+                Cell::from(format_bytes(disk_data.available[i])).style(Style::default().fg(Color::White)),
+                Cell::from(format_bytes(disk_data.curr_read[i])).style(Style::default().fg(Color::Green)),
+                Cell::from(format_bytes(disk_data.curr_write[i])).style(Style::default().fg(Color::Red)),
             ])
         }).collect();
 

@@ -21,7 +21,9 @@ use ratatui::{
 #[cfg(target_os = "macos")]
 use crate::data::darwin::cache::CacheMac;
 
-use crate::data::info::{SystemInfo};
+use crate::data::cpu::CpuInfo;
+use crate::data::mem::MemInfo;
+use crate::data::os::OsInfo;
 use crate::data::clock::local_time;
 use crate::data::disk::DiskData;
 use crate::draw::widgets::cpu_graph::{MultiCoreGraph, ColorScheme};
@@ -31,7 +33,6 @@ use crate::draw::widgets::network_graph::NetworkGraph;
 use crate::draw::widgets::temp_widget::TempWidget;
 
 pub struct App {
-    sys_info: SystemInfo,
     cpu_model_lines: Vec<Line<'static>>,
     cpu_cache_lines: Vec<Line<'static>>,
     mem_lines: Vec<Line<'static>>,
@@ -54,9 +55,8 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let mut sys = System::new_all();
-        let sys_info = SystemInfo;
 
-        let cpu_model_lines = if let Some(cpu_model) = SystemInfo::display_cpu_model(&mut sys) {
+        let cpu_model_lines = if let Some(cpu_model) = CpuInfo::display_cpu_model(&mut sys) {
             cpu_model.into_iter()
                 .map(|(key, value)| Line::from(format!("{}: {}", key, value)))
                 .collect()
@@ -68,7 +68,7 @@ impl App {
         let cpu_cache_lines: Vec<Line<'static>> = CacheMac::cache_lines();
 
         #[cfg(not(target_os = "macos"))]
-        let cpu_cache_lines = if let Some(cpu_cache) = SystemInfo::display_cpu_cache() {
+        let cpu_cache_lines = if let Some(cpu_cache) = CpuInfo::display_cpu_cache() {
             let cache_str = cpu_cache.into_iter()
                 .map(|(key, value)| format!("{}: {}", key, value))
                 .collect::<Vec<_>>()
@@ -78,13 +78,13 @@ impl App {
             vec![Line::from("Cache info not available")]
         };
 
-        let mem_lines: Vec<Line<'static>> = if let Some(mem_info) =  SystemInfo::display_memory(&mut sys) {
+        let mem_lines: Vec<Line<'static>> = if let Some(mem_info) = MemInfo::display_memory(&mut sys) {
             mem_info.into_iter().map(| str | Line::from(format!("{}", str))).collect::<Vec<_>>()
         } else {
             vec![Line::from("No mem info")]
         };
 
-        let num_cores = SystemInfo::num_cores(&mut sys);
+        let num_cores = CpuInfo::num_cores(&mut sys);
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
         let total_cpu_bar = TotalCoreBar::new(BarColorScheme::Green);
         let temp_bar = TempBar::new(BarColorScheme::Green);
@@ -101,7 +101,6 @@ impl App {
         let popup = AboutPopUp::default();
 
         Self {
-            sys_info,
             cpu_model_lines,
             cpu_cache_lines,
             mem_lines,
@@ -123,7 +122,7 @@ impl App {
     }
 
     pub fn update_data(&mut self) {
-        let core_usages = SystemInfo::get_core_usages(&mut self.sys);
+        let core_usages = CpuInfo::get_core_usages(&mut self.sys);
 
         for (i, usage) in core_usages.iter().enumerate() {
             self.core_graph.cores.insert(i, *usage);
@@ -148,7 +147,7 @@ impl App {
         execute!(io::stdout(), EnableMouseCapture)?;
 
         loop {
-            SystemInfo::set_refresh_timer(&mut self.sys);
+            CpuInfo::set_refresh_timer(&mut self.sys);
 
             self.update_time().await;
             self.update_data();
@@ -170,7 +169,7 @@ impl App {
                 "<Q/Esc> ".red().bold(),
             ]);
 
-            let hostname_output = self.sys_info.display_host_name().unwrap();
+            let hostname_output = OsInfo::display_host_name().unwrap();
 
             let outer_block = Block::bordered()
                 .title(Line::from(self.ntp_time.clone()).centered())
@@ -196,7 +195,7 @@ impl App {
                 Constraint::Percentage(50),
             ]).split(inner_area);
 
-            let num_cores = SystemInfo::num_cores(&mut self.sys);
+            let num_cores = CpuInfo::num_cores(&mut self.sys);
             let left_width = layout[0].width.saturating_sub(2) as usize;
             let label_width = 10;
             let min_bar_width = 10;
@@ -221,7 +220,7 @@ impl App {
 
             let mut cpu_lines: Vec<Line> = Vec::new();
 
-            let cpu_cores = SystemInfo::display_cores(&mut self.sys)
+            let cpu_cores = CpuInfo::display_cores(&mut self.sys)
                 .unwrap_or_else(|| vec![String::from("No CPU data available")]);
 
             for core in cpu_cores {
