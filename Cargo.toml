@@ -20,7 +20,6 @@ sysctl = "0.7.1"
 sysinfo = "0.37.2"
 chrono = "0.4"
 indexmap = "2"
-rsntp = { version = "4.1.1", features = ["async"] }
-tokio = { version = "1", features = ["full"] }
+rsntp = "4.1.1"
 bitflags = "2.11.0"
 

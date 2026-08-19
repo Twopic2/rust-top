@@ -1,3 +1,5 @@
+use std::format;
+
 pub const KILOBYTE: f64 = 1024.0;
 pub const MEGABYTE: f64 = 1024.0 * 1024.0;
 pub const GIGABYTE: f64 = 1024.0 * 1024.0 * 1024.0;
@@ -41,6 +43,11 @@ pub fn format_bytes(bytes: u64) -> String {
     } else {
         format!("{} B", bytes)
     }
+}
+
+pub fn format_kb(bytes: usize) -> f64 {
+    let kb = bytes as f64 / KILOBYTE;
+    kb
 }
 
 pub fn format_axis_label(bytes: f64) -> String {

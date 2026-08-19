@@ -6,7 +6,6 @@ use crate::data::darwin::cache::CacheMac;
 
 use crate::data::cpu::CpuInfo;
 use crate::data::mem::MemInfo;
-use crate::data::clock::local_time;
 use crate::data::disk::DiskData;
 use crate::draw::widgets::cpu_graph::{MultiCoreGraph, ColorScheme};
 use crate::draw::widgets::cpu_bar::{TotalCoreBar, TempBar, BarColorScheme};
@@ -15,7 +14,7 @@ use crate::draw::widgets::process_table::ProcessTable;
 
 pub struct TopCollection {
     pub sys: System,
-    pub cpu_model_lines: Vec<Line<'static>>,
+    pub cpu_model_lines: Line<'static>,
     pub cpu_cache_lines: Vec<Line<'static>>,
     pub mem_lines: Vec<Line<'static>>,
     pub core_graph: MultiCoreGraph,
@@ -24,7 +23,6 @@ pub struct TopCollection {
     pub network_histogram: NetworkGraph,
     pub disk_data: DiskData,
     pub process_tree: ProcessTable,
-    pub ntp_time: String,
 }
 
 impl TopCollection {
@@ -32,32 +30,24 @@ impl TopCollection {
         let mut sys = System::new_all();
 
         let cpu_model_lines = if let Some(cpu_model) = CpuInfo::display_cpu_model(&mut sys) {
-            cpu_model.into_iter()
-                .map(|(key, value)| Line::from(format!("{}: {}", key, value)))
-                .collect()
+            Line::from(cpu_model)
         } else {
-            Vec::new()
+            Line::from("Cpu Model isn't here")
         };
 
         #[cfg(target_os = "macos")]
         let cpu_cache_lines: Vec<Line<'static>> = CacheMac::cache_lines();
 
         #[cfg(not(target_os = "macos"))]
-        let cpu_cache_lines = if let Some(cpu_cache) = CpuInfo::display_cpu_cache() {
-            let cache_str = cpu_cache.into_iter()
-                .map(|(key, value)| format!("{}: {}", key, value))
-                .collect::<Vec<_>>()
-                .join(" | ");
-            vec![Line::from(cache_str)]
-        } else {
-            vec![Line::from("Cache info not available")]
-        };
+        let cpu_lines = CpuInfo::display_cpu_cache();
+        let cpu_cache_lines = cpu_lines
+            .into_iter().map(|(key, value)| {
+                Line::from(format!("{}: {} kb", key, value))
+            }).collect();
 
-        let mem_lines: Vec<Line<'static>> = if let Some(mem_info) = MemInfo::display_memory(&mut sys) {
-            mem_info.into_iter().map(|str| Line::from(format!("{}", str))).collect::<Vec<_>>()
-        } else {
-            vec![Line::from("No mem info")]
-        };
+        let mem_lines = MemInfo::display_memory(&mut sys).into_iter().map(|value| {
+            Line::from(value)
+        }).collect();
 
         let num_cores = CpuInfo::num_cores(&mut sys);
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
@@ -78,7 +68,6 @@ impl TopCollection {
             network_histogram,
             disk_data,
             process_tree,
-            ntp_time: "--:--:--".to_string(),
         }
     }
 
@@ -102,9 +91,5 @@ impl TopCollection {
         self.disk_data.collect_all(&mut self.sys);
 
         self.process_tree.refresh(&mut self.sys);
-    }
-
-    pub async fn update_time(&mut self) {
-        self.ntp_time = local_time().await;
     }
 }

@@ -14,29 +14,27 @@ impl NetworkHarvester {
     pub fn get_curr_network_data(&mut self) -> Vec<u64> {
         self.network.refresh(true);
 
-        self.curr_rx = 0;
-        self.curr_tx = 0;
+        self.curr_rx = self.network.iter().fold(0, |rx, (_, net)| rx + net.received());
+        self.curr_tx = self.network.iter().fold(0, |tx, (_, net)| tx + net.transmitted());
 
-        for (_, netwrk) in self.network.iter() {
-            self.curr_rx += netwrk.received();
-            self.curr_tx += netwrk.transmitted();
-        }
-
-        vec![self.curr_rx, self.curr_tx]
+        let mut curr_network = Vec::new();
+        curr_network.push(self.curr_rx);
+        curr_network.push(self.curr_tx);
+        
+        curr_network
     }
 
     pub fn get_total_network_data(&mut self) -> Vec<u64> {
         self.network.refresh(true);
 
-        self.total_rx = 0;
-        self.total_tx = 0;
+        self.total_rx = self.network.iter().fold(0, |rx, (_, net)| rx + net.total_received());
+        self.total_tx = self.network.iter().fold(0, |tx, (_, net)| tx + net.total_transmitted());
 
-        for (_, netwrk) in self.network.iter() {
-            self.total_rx += netwrk.total_received();
-            self.total_tx += netwrk.total_transmitted();
-        }
-
-        vec![self.total_rx, self.total_tx]
+        let mut curr_network = Vec::new();
+        curr_network.push(self.total_rx);
+        curr_network.push(self.total_tx);
+        
+        curr_network
     }
     
     pub fn get_ip_adress(&mut self) -> String {

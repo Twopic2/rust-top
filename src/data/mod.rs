@@ -1,7 +1,6 @@
 pub mod cpu;
 pub mod mem;
 pub mod os;
-pub mod clock;
 
 pub mod temp;
 pub mod network;

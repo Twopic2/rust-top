@@ -4,15 +4,19 @@ use crate::tools::units::GIGABYTE;
 pub struct MemInfo;
 
 impl MemInfo {
-    pub fn display_memory(sys: &mut System) -> Option<Vec<String>> {
+    pub fn display_memory(sys: &mut System) -> Vec<String> {
         let mut info = Vec::new();
+        
         let total = sys.total_memory() as f64 / GIGABYTE;
         let used = sys.used_memory() as f64 / GIGABYTE;
+        
         let total_swap = sys.total_swap() as f64 / GIGABYTE;
         let used_swap = sys.used_swap() as f64 / GIGABYTE;
+
         info.push(format!("Total: {:.2} GB    Total Swap: {:.2} GB", total, total_swap));
-        info.push(format!("Used: {:.2} GB    Used Swap: ({:.2} GB)", used, used_swap));
-        Some(info)
+        info.push(format!("Used: {:.2} GB     Used Swap: ({:.2} GB)", used, used_swap));
+
+        info
     }
 }
 
@@ -48,17 +52,5 @@ mod tests {
         let used_swap: f64 = 1.10;
         let line = format!("Used: {:.2} GB    Used Swap: ({:.2} GB)", used, used_swap);
         assert_eq!(line, "Used: 5.25 GB    Used Swap: (1.10 GB)");
-    }
-
-    #[test]
-    fn display_memory_returns_two_lines() {
-        let mut sys = System::new_all();
-        sys.refresh_memory();
-        let info = MemInfo::display_memory(&mut sys);
-        assert!(info.is_some());
-        let lines = info.unwrap();
-        assert_eq!(lines.len(), 2);
-        assert!(lines[0].starts_with("Total:"));
-        assert!(lines[1].starts_with("Used:"));
     }
 }

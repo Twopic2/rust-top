@@ -55,13 +55,12 @@ impl App {
         }
     }
 
-    pub async fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
+    pub fn run(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         execute!(io::stdout(), EnableMouseCapture)?;
 
         loop {
             self.collection.refresh_timer();
 
-            self.collection.update_time().await;
             self.collection.update_data();
 
             self.draw(terminal)?;
@@ -91,7 +90,6 @@ impl App {
             let hostname_output = OsInfo::display_host_name().unwrap();
 
             let outer_block = Block::bordered()
-                .title(Line::from(self.collection.ntp_time.clone()).centered())
                 .title(Line::from(hostname_output).left_aligned())
                 .title_bottom(instructions.centered())
                 .border_set(border::THICK);
@@ -121,7 +119,7 @@ impl App {
             let cores_per_row = (left_width / (label_width + min_bar_width)).max(1);
             let num_rows = (num_cores + cores_per_row - 1) / cores_per_row;
             let cpu_cores_height = (num_rows + 2).max(5) as u16;
-            let cpu_info_height = (self.collection.cpu_model_lines.len().max(self.collection.cpu_cache_lines.len()).max(2) + 2) as u16;
+            let cpu_info_height = (self.collection.cpu_model_lines.spans.len().max(self.collection.cpu_cache_lines.len()).max(2) + 2) as u16;
 
             let temp_widget_height = if TempData::all_temps().is_some() {
                 self.temp_widget.get_height().max(self.collection.temp_bar.get_height() + 2)
