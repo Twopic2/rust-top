@@ -1,6 +1,7 @@
 use std::io;
 use std::time::{Duration, Instant};
-use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::event::{self, DisableMouseCapture, Event, KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind};
+use crossterm::execute;
 use sysinfo::System;
 use crate::draw::widgets::refresh_ticker::{TickButton, TickCounter};
 use crate::draw::widgets::process_table::{ProcessTable, ProcInfoPopup, SearchState};
@@ -103,7 +104,11 @@ fn keystroke_type(
     }
 
     match event.code {
-        KeyCode::Char('q') | KeyCode::Esc => true,
+        KeyCode::Char('q') | KeyCode::Esc => {
+            execute!(io::stdout(), DisableMouseCapture).expect("DiableMouseCapture went wrong");
+
+            true
+        }
         KeyCode::Char('k') => {
             let pid = process_widget.selected_pid;
             if pid != 0 {
