@@ -74,8 +74,10 @@ impl ProcessTable {
         }
     }
 
+    /// ! Rust analyzer was bugged out
     pub fn is_searching(&self) -> bool {
-        matches!(self.search_state, SearchState::Searching | SearchState::FilterApplied)
+        let rust_bug: bool = matches!(self.search_state, SearchState::Searching | SearchState::FilterApplied);
+        rust_bug 
     }
 
     pub fn is_filter_input_active(&self) -> bool {
@@ -175,13 +177,15 @@ impl ProcessTable {
         let data_items: Vec<ListItem> = self.sorted_proc
             .iter()
             .map(|p| {
+                let trimmed_command = p.command.split_once(' ').map(|(first, _)| first).unwrap_or(&p.command);
+
                 let line = format!(
                     "{:>7} {:>6.1}% {:>6.1}% {:>15} {}",
                     p.pid,
                     p.cpu_usage_percent,
                     p.mem_usage_percent,
                     p.program,
-                    p.command
+                    trimmed_command
                 );
                 ListItem::new(line)
             })
@@ -340,15 +344,30 @@ impl ProcInfoPopup {
         frame.render_widget(info_block, info_area);
 
         if let Some(p) = self.find_selected() {
-            let lines = vec![
-                Line::from(format!("PID:     {}", p.pid)),
-                Line::from(format!("Program: {}", p.program)),
-                Line::from(format!("Command: {}", p.command)),
-                Line::from(format!("CPU:     {:.1}%", p.cpu_usage_percent)),
-                Line::from(format!("MEM:     {:.1}%", p.mem_usage_percent)),
-                Line::from(format!("User:    {}", p.user)),
-            ];
+            let mut lines = Vec::new();
 
+            if let Some(io) = &p.disk_io {
+                lines = vec![
+                    Line::from(format!("PID:     {}", p.pid)),
+                    Line::from(format!("Program: {}", p.program)),
+                    Line::from(format!("Command: {}", p.command)),
+                    Line::from(format!("CPU:     {:.1}%", p.cpu_usage_percent)),
+                    Line::from(format!("MEM:     {:.1}%", p.mem_usage_percent)),
+                    Line::from(format!("User:    {}", p.user)),
+                    Line::from(format!("Read IO:    {}", io.read_bytes)),   
+                    Line::from(format!("Write IO:    {}", io.write_bytes)),
+                ];
+            } else {
+                lines = vec![
+                    Line::from(format!("PID:     {}", p.pid)),
+                    Line::from(format!("Program: {}", p.program)),
+                    Line::from(format!("Command: {}", p.command)),
+                    Line::from(format!("CPU:     {:.1}%", p.cpu_usage_percent)),
+                    Line::from(format!("MEM:     {:.1}%", p.mem_usage_percent)),
+                    Line::from(format!("User:    {}", p.user)),
+                ];
+            }
+            
             frame.render_widget(Paragraph::new(lines), inner);
         }
     }
