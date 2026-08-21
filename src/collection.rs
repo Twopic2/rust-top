@@ -40,10 +40,10 @@ impl TopCollection {
 
         #[cfg(not(target_os = "macos"))]
         let cpu_lines = CpuInfo::display_cpu_cache();
-        let cpu_cache_lines = cpu_lines
-            .into_iter().map(|(key, value)| {
-                Line::from(format!("{}: {} kb", key, value))
-            }).collect();
+        #[cfg(not(target_os = "macos"))]
+        let cpu_cache_lines = cpu_lines.into_iter().map(|(key, value)| {
+            Line::from(format!("{}: {} kb", key, value))
+        }).collect();
 
         let mem_lines = MemInfo::display_memory(&mut sys).into_iter().map(|value| {
             Line::from(value)
