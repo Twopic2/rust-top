@@ -1,6 +1,6 @@
-use std::{fs::File, io::{BufRead, BufReader, ErrorKind}, sync::Arc, todo};
+use std::{fs::File, io::{BufRead, BufReader, ErrorKind}, str::Bytes, sync::Arc, todo};
 
-use anyhow::Ok;
+use std::result::Result::Ok;
 use sysinfo::{System};
 
 #[derive(Clone, Debug, Default)]
@@ -9,6 +9,9 @@ pub struct Io {
    pub write_bytes: u64
 }
 
+// TODO
+/* Might make it where processdata is split between macos/unix/windows */
+
 #[derive(Clone, Debug, Default)]
 pub struct CollectProcessData {
     pub pid: u32,
@@ -16,11 +19,10 @@ pub struct CollectProcessData {
     pub program: String,
     pub mem_usage_percent: f32,
     pub cpu_usage_percent: f32,
-    // Todo: future features
     // pub parent_pid: Option<u32>
     // pub process_state: &'static str,
     pub disk_io: Option<Io>,
-    pub uid: Option<libc::uid_t>, 
+    pub uid: Option<libc::uid_t>, // ! uid_t is u32
     pub user: &'static str, //Might change this to Arc
 }
 
@@ -65,16 +67,18 @@ impl CollectProcessData {
 fn pid_io_results(pid: u32) -> anyhow::Result<Io> {
     let io_file = File::open(format!("/proc/{pid}/io"))?;
 
-    let reader = BufReader::new(io_file);
+    let mut reader = BufReader::new(io_file);
 
     let mut read_bytes = 0;
     let mut write_bytes = 0;
 
-    /// ! This is bad since we keep using string allocation
-    for line in reader.lines() {
-        let line = line?;
-      
-        if let Some((field, value)) = line.split_once(':') {
+    let mut buffer = String::new();
+    while let Ok(n) = reader.read_line(&mut buffer) {
+        if n == 0 {
+            break;
+        }
+
+        if let Some((field, value)) = buffer.split_once(':') {
             match field {
                 "read_bytes" => {
                     read_bytes = value.trim().parse().unwrap()
@@ -82,9 +86,11 @@ fn pid_io_results(pid: u32) -> anyhow::Result<Io> {
                 "write_bytes" => {
                     write_bytes = value.trim().parse().unwrap()
                 },
-                _ => { continue; }
+                _ => { }
             }
         }
+
+        buffer.clear();
     }
 
     Ok(Io {
