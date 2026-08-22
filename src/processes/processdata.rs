@@ -86,7 +86,10 @@ fn pid_io_results(pid: u32) -> anyhow::Result<Io> {
                 "write_bytes" => {
                     write_bytes = value.trim().parse().unwrap()
                 },
-                _ => { }
+                _ => {
+                    buffer.clear();
+                    continue;
+                 }
             }
         }
 
