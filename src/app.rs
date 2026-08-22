@@ -14,7 +14,8 @@ use crate::draw::widgets::about_popup::AboutPopUp;
 use crate::draw::widgets::disk_table::DiskTable;
 use crate::draw::widgets::temp_widget::TempWidget;
 use ratatui::{
-    DefaultTerminal,
+    DefaultTerminal, Terminal,
+    backend::Backend,
     layout::{Constraint, Layout},
     style::{Color, Style, Stylize, Modifier},
     symbols::border,
@@ -23,7 +24,7 @@ use ratatui::{
 };
 
 pub struct App {
-    collection: TopCollection,
+    pub(crate) collection: TopCollection,
     temp_widget: TempWidget,
     disk_graph: DiskTable,
     duration_control: TickButton,

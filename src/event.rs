@@ -62,7 +62,7 @@ fn mouse_ticker_click(event: MouseEvent, tick_button: &mut TickButton) {
     }
 }
 
-fn keystroke_type(
+pub fn keystroke_type(
     event: KeyEvent,
     tick_button: &mut TickButton,
     process_widget: &mut ProcessTable,

@@ -3,6 +3,10 @@ name = "rust-top"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "rust_top"
+path = "src/lib.rs"
+
 [[bin]]
 name = "rust-top"
 path = "src/main.rs"
@@ -24,3 +28,10 @@ rsntp = "4.1.1"
 bitflags = "2.11.0"
 anyhow = "1.0.104"
 
+dhat = { version = "0.3", optional = true }
+
+[features]
+dhat-heap = ["dep:dhat"]
+
+[profile.release]
+debug = 1         

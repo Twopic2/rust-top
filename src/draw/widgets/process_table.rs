@@ -44,6 +44,7 @@ pub struct ProcessTable {
     sort_order: SortOrder,
     pub search_state: SearchState,
     pub search_input: String,
+    /// TODO makes it where the process_data isn't behind CollectProcessData struct
     pub collector: CollectProcessData,
     pub proc_table: Vec<CollectProcessData>,
     pub filtered_table: Vec<CollectProcessData>,
@@ -353,6 +354,7 @@ impl ProcInfoPopup {
                     Line::from(format!("Command: {}", p.command)),
                     Line::from(format!("CPU:     {:.1}%", p.cpu_usage_percent)),
                     Line::from(format!("MEM:     {:.1}%", p.mem_usage_percent)),
+                    Line::from(format!("UID:    {:?}", p.uid)),
                     Line::from(format!("User:    {}", p.user)),
                     Line::from(format!("Read IO:    {}", io.read_bytes)),   
                     Line::from(format!("Write IO:    {}", io.write_bytes)),
@@ -364,6 +366,7 @@ impl ProcInfoPopup {
                     Line::from(format!("Command: {}", p.command)),
                     Line::from(format!("CPU:     {:.1}%", p.cpu_usage_percent)),
                     Line::from(format!("MEM:     {:.1}%", p.mem_usage_percent)),
+                    Line::from(format!("UID:    {:?}", p.uid)),
                     Line::from(format!("User:    {}", p.user)),
                 ];
             }

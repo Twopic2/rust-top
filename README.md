@@ -12,17 +12,6 @@ A terminal-based system monitor written in Rust. Displays real-time CPU, memory,
 - **Processes** — live process list sorted by CPU usage with memory %
 - Configurable refresh rate (1000–5000ms)
 
-## Platform Support
-
-| WSL | Linux | macOS |
-|---------|-------|-------|
-| CPU / Memory | ✓ | ✓ |
-| Temperatures | ✓ (lm-sensors) | ✓ (sysinfo) |
-| CPU Cache Info | ✓ (cache-size) | ✓ (sysctl P/E cores) |
-| Disk I/O | ✓ | ✓ |
-| Network | ✓ | ✓ |
-| Processes | ✓ | ✓ |
-
 ## Requirements
 
 **Linux:**
@@ -46,16 +35,19 @@ sudo sensors-detect
 
 <img width="3727" height="1918" alt="Screenshot_20260222_225826" src="https://github.com/user-attachments/assets/340abb8f-67b6-46ff-a696-c3adb0672a93" />
 
-## Dependencies
+## Building
 
-| Crate | Purpose |
-|-------|---------|
-| `ratatui` | Terminal UI framework |
-| `crossterm` | Terminal input/output |
-| `sysinfo` | CPU, memory, process, component data |
-| `lm-sensors` | Linux hardware temperature sensors |
-| `sysctl` | macOS sysctl calls (cache info) |
-| `cache-size` | Linux CPU cache sizes |
-| `libc` | Unix system calls |
-| `local-ip-address` | Local network IP |
-| `color-eyre` | Error reporting |
+**Debug**
+- cargo build
+- cargo run
+
+**Release**
+- cargo build --release
+- cargo run --release
+
+
+## Benchmarking
+
+**d-hat memory allocations**
+- cargo run --release --features dhat-heap
+which produces a dhat-heap.json which shows the data inside https://nnethercote.github.io/dh_view/dh_view.html. 

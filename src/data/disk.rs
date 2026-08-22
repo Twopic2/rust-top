@@ -1,4 +1,4 @@
-use sysinfo::{Disks, System};
+use sysinfo::{Disks, ProcessRefreshKind, System};
 
 /* implamentation inspired by Bottom
 https://github.com/ClementTsang/bottom
@@ -18,7 +18,7 @@ pub struct DiskData {
 impl DiskData {
     pub fn refresh(&mut self, sys: &mut System) {
         self.disks.refresh(true);
-        sys.refresh_processes(sysinfo::ProcessesToUpdate::All, false);
+        sys.refresh_processes_specifics(sysinfo::ProcessesToUpdate::All, true, ProcessRefreshKind::nothing().with_disk_usage().without_tasks());
     }
     
     fn get_total_io_read(&self, sys: &mut System) -> u64 {
@@ -80,5 +80,7 @@ impl DiskData {
 
         self.curr_read = vec![total_read; disks_data.len()];
         self.curr_write = vec![total_write; disks_data.len()];
+
+        disks_data.clear();
     }
 }
