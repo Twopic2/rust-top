@@ -64,7 +64,7 @@ impl CollectProcessData {
 }
 
 // Credit to ClementTsang inside process.rs
-fn pid_io_results(pid: u32) -> anyhow::Result<Io> {
+pub fn pid_io_results(pid: u32) -> anyhow::Result<Io> {
     let io_file = File::open(format!("/proc/{pid}/io"))?;
 
     let mut reader = BufReader::new(io_file);
@@ -102,7 +102,7 @@ fn pid_io_results(pid: u32) -> anyhow::Result<Io> {
     })
 }
 
-fn uid_to_user(uid: Option<libc::uid_t>) -> &'static str {
+pub fn uid_to_user(uid: Option<libc::uid_t>) -> &'static str {
     match uid {
         Some(1000) => "Base User",
         Some(0) => "Root User",
