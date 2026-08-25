@@ -131,7 +131,7 @@ impl App {
             let left_layout = Layout::vertical([
                 Constraint::Length(cpu_info_height),
                 Constraint::Length(cpu_cores_height),
-                Constraint::Length(5),
+                Constraint::Length(3),
                 Constraint::Length(temp_widget_height),
                 Constraint::Min(10),
             ]).split(layout[0]);
