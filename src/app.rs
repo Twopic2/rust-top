@@ -224,6 +224,7 @@ impl App {
             let right_layout = Layout::vertical([
                 Constraint::Length(disk_height),
                 Constraint::Min(10),
+                Constraint::Length(3),
             ]).split(layout[1]);
 
             self.disk_graph.render(frame, right_layout[0], &mut self.collection.disk_data);
@@ -242,6 +243,8 @@ impl App {
 
             self.collection.process_tree.render(frame, proc_split[0]);
             self.process_taskbar.render(frame, proc_split[1], self.collection.process_tree.selected_pid);
+
+            frame.render_widget(&self.collection.cpu_power, right_layout[2]);
 
             self.proc_info_popup.render(frame, frame.area());
             self.popup.render(frame, frame.area());

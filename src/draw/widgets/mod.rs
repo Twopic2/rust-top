@@ -7,3 +7,4 @@ pub mod process_table;
 pub mod process_taskbar;
 pub mod refresh_ticker;
 pub mod temp_widget;
+pub mod cpu_power;

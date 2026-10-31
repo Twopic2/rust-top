@@ -11,12 +11,6 @@ use crate::tools::units::KILOBYTE;
 
 pub struct CpuInfo;
 
-/* 
-    ! Important Fixes
-
-    Why is there so many useless hashmaps this could be all implamented with a Vector. 
-*/
-
 impl CpuInfo {
     pub fn num_cores(sys: &mut System) -> usize {
         sys.cpus().len()

@@ -7,8 +7,10 @@ use crate::data::darwin::cache::CacheMac;
 use crate::data::cpu::CpuInfo;
 use crate::data::mem::MemInfo;
 use crate::data::disk::DiskData;
+use crate::data::power::CpuPackageCap;
 use crate::draw::widgets::cpu_graph::{MultiCoreGraph, ColorScheme};
 use crate::draw::widgets::cpu_bar::{TotalCoreBar, TempBar, BarColorScheme};
+use crate::draw::widgets::cpu_power::CpuPowerUsage;
 use crate::draw::widgets::network_graph::NetworkGraph;
 use crate::draw::widgets::process_table::ProcessTable;
 
@@ -19,6 +21,8 @@ pub struct TopCollection {
     pub mem_lines: Vec<Line<'static>>,
     pub core_graph: MultiCoreGraph,
     pub total_cpu_bar: TotalCoreBar,
+    pub cpu_power: CpuPowerUsage,
+    cpu_package: Option<CpuPackageCap>,
     pub temp_bar: TempBar,
     pub network_histogram: NetworkGraph,
     pub disk_data: DiskData,
@@ -56,6 +60,8 @@ impl TopCollection {
         let network_histogram = NetworkGraph::new(60);
         let disk_data = DiskData::default();
         let process_tree = ProcessTable::new();
+        let cpu_power = CpuPowerUsage::default();
+        let cpu_package = CpuPackageCap::new().ok();
 
         Self {
             sys,
@@ -64,6 +70,8 @@ impl TopCollection {
             mem_lines,
             core_graph,
             total_cpu_bar,
+            cpu_power,
+            cpu_package,
             temp_bar,
             network_histogram,
             disk_data,
@@ -83,6 +91,14 @@ impl TopCollection {
         }
 
         self.total_cpu_bar.update(&core_usages);
+
+        let watts = if let Some(package) = self.cpu_package.as_mut() {
+            package.refresh().ok().map(|()| package.curr_watt)
+        } else {
+            self.cpu_package = CpuPackageCap::new().ok();
+            None
+        };
+        self.cpu_power.update(watts);
         self.temp_bar.update();
 
         self.network_histogram.update();
