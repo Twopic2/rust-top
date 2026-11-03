@@ -65,3 +65,13 @@ The widget shows `N/A` if RAPL counters are unavailable.
 **d-hat memory allocations**
 - cargo run --release --features dhat-heap
 which produces a dhat-heap.json which shows the data inside https://nnethercote.github.io/dh_view/dh_view.html.
+
+**Flamegraph**
+
+``` sh
+CARGO_PROFILE_RELEASE_DEBUG=true \
+RUSTFLAGS="-C link-arg=-Wl,--no-rosegment" \
+cargo flamegraph --root --bin rust-top -o flamegraph.svg
+```
+
+This should produce flamegraph.svg file. Where you should be able to drag and drop into any broswer app. 
