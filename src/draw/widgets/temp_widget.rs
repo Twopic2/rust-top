@@ -20,10 +20,13 @@ pub struct TempWidget {
 
 impl TempWidget {
     pub fn filter(&mut self) {
+        // Rebuild the sensor selection and count on every pass.
+        *self = Self::default();
         if let Some(all_temps) = TempData::all_temps() {
             let mut cpu_line_stop = false;
             let mut disk_line_stop = false;
             let mut ddr_line_stop = false;
+            // TODO add nic support
             let mut nic_line_stop = false;
 
             for (label, temp_opt) in all_temps {

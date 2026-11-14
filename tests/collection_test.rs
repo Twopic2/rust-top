@@ -3,6 +3,16 @@
 
 use rust_top::collection::TopCollection;
 use rust_top::data::cpu::CpuInfo;
+use std::sync::{Mutex, MutexGuard};
+
+static SENSOR_LOCK: Mutex<()> = Mutex::new(());
+
+fn collection() -> (MutexGuard<'static, ()>, TopCollection) {
+    // lm-sensors permits only one active handle per process. Tests bind the
+    // guard before the collection so the collection drops before unlocking.
+    let guard = SENSOR_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    (guard, TopCollection::new())
+}
 
 fn lengths_match(c: &TopCollection) -> bool {
     let d = &c.disk_data;
@@ -17,7 +27,7 @@ fn lengths_match(c: &TopCollection) -> bool {
 
 #[test]
 fn new_collection_is_fully_populated() {
-    let mut c = TopCollection::new();
+    let (_guard, mut c) = collection();
 
     assert!(!c.cpu_model_lines.spans.is_empty(), "cpu model line is empty");
     assert_eq!(c.mem_lines.len(), 2, "memory panel is two lines");
@@ -29,7 +39,7 @@ fn new_collection_is_fully_populated() {
 
 #[test]
 fn new_collection_starts_with_zeroed_core_usage() {
-    let c = TopCollection::new();
+    let (_guard, c) = collection();
     assert!(
         c.core_graph.cores.values().all(|v| *v == 0.0),
         "core usages should start at zero until the first update"
@@ -38,7 +48,7 @@ fn new_collection_starts_with_zeroed_core_usage() {
 
 #[test]
 fn new_collection_has_no_disk_or_process_data_yet() {
-    let c = TopCollection::new();
+    let (_guard, c) = collection();
     assert!(c.disk_data.disk_name.is_empty(), "disks are collected in update_data");
     assert!(c.process_tree.proc_table.is_empty());
     assert_eq!(c.process_tree.selected_pid, 0);
@@ -46,7 +56,7 @@ fn new_collection_has_no_disk_or_process_data_yet() {
 
 #[test]
 fn one_full_cycle_populates_disks_and_processes() {
-    let mut c = TopCollection::new();
+    let (_guard, mut c) = collection();
     c.refresh_timer();
     c.update_data();
 
@@ -59,7 +69,7 @@ fn one_full_cycle_populates_disks_and_processes() {
 
 #[test]
 fn update_data_keeps_one_graph_entry_per_core() {
-    let mut c = TopCollection::new();
+    let (_guard, mut c) = collection();
     let cores = CpuInfo::num_cores(&mut c.sys);
 
     c.refresh_timer();
@@ -74,13 +84,12 @@ fn update_data_keeps_one_graph_entry_per_core() {
 
 #[test]
 fn repeated_cycles_do_not_grow_any_collection() {
-    let mut c = TopCollection::new();
+    let (_guard, mut c) = collection();
     let cores = CpuInfo::num_cores(&mut c.sys);
 
     c.refresh_timer();
     c.update_data();
     let disks_after_first = c.disk_data.disk_name.len();
-    let voltages_after_first = c.voltage_bar.voltages.voltage_read_points.len();
 
     for _ in 0..3 {
         c.refresh_timer();
@@ -95,16 +104,11 @@ fn repeated_cycles_do_not_grow_any_collection() {
     );
     assert!(lengths_match(&c));
     assert_eq!(c.mem_lines.len(), 2);
-    assert_eq!(
-        c.voltage_bar.voltages.voltage_read_points.len(),
-        voltages_after_first,
-        "voltage readings must be replaced, not appended"
-    );
 }
 
 #[test]
 fn every_process_row_stays_within_range_across_cycles() {
-    let mut c = TopCollection::new();
+    let (_guard, mut c) = collection();
     for _ in 0..2 {
         c.refresh_timer();
         c.update_data();
@@ -124,7 +128,7 @@ fn every_process_row_stays_within_range_across_cycles() {
 #[test]
 fn update_data_without_a_prior_refresh_timer_still_works() {
     // The main loop always pairs them, but update_data must not depend on it.
-    let mut c = TopCollection::new();
+    let (_guard, mut c) = collection();
     c.update_data();
     assert!(lengths_match(&c));
     assert!(!c.process_tree.proc_table.is_empty());

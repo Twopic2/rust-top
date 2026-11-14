@@ -64,9 +64,9 @@ impl TickButton {
                     }
 
                     let duration_ms = self.duration.as_millis();
-                    let text_len = format!(" - {}ms  + ", duration_ms).len() as u16;
+                    let text_len = format!(" -  {}ms  + ", duration_ms).len() as u16;
 
-                    if relative_col >= text_len - 3 {
+                    if (text_len - 3..text_len).contains(&relative_col) {
                         return TickCounter::Increment;
                     }
                 }

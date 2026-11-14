@@ -50,6 +50,7 @@ pub struct ProcessTable {
     pub filtered_table: Vec<CollectProcessData>,
     pub sorted_proc: Vec<CollectProcessData>,
     render_area: Rect,
+    list_offset: usize,
 }
 
 impl ProcessTable {
@@ -65,6 +66,7 @@ impl ProcessTable {
             filtered_table: Vec::new(),
             sorted_proc: Vec::new(),
             render_area: Rect::default(),
+            list_offset: 0,
         }
     }
 
@@ -75,10 +77,8 @@ impl ProcessTable {
         }
     }
 
-    /// ! Rust analyzer was bugged out
     pub fn is_searching(&self) -> bool {
-        let rust_bug: bool = matches!(self.search_state, SearchState::Searching | SearchState::FilterApplied);
-        rust_bug 
+        matches!(self.search_state, SearchState::Searching | SearchState::FilterApplied)
     }
 
     pub fn is_filter_input_active(&self) -> bool {
@@ -102,7 +102,6 @@ impl ProcessTable {
             .cloned()
             .collect();
 
-        self.proc_table.clear();
     }
 
     pub fn get_sorted_processes(&self, processes: Vec<CollectProcessData>) -> Vec<CollectProcessData> {
@@ -134,15 +133,14 @@ impl ProcessTable {
         if col < area.x || col >= area.x + area.width { return; }
         if row < area.y || row >= area.y + area.height { return; }
 
-        let offset = row.saturating_sub(area.y + 2) as usize;
+        let list_index = self.list_offset + usize::from(row - area.y);
+        let Some(offset) = list_index.checked_sub(1) else { return; };
         if let Some(p) = self.sorted_proc.get(offset) {
             self.selected_pid = p.pid;
         }
     }
 
     pub fn render(&mut self, frame: &mut Frame, area: Rect) {
-        self.render_area = area;
-
         let list_area = if self.is_filter_input_active() {
             let split = Layout::vertical([
                 Constraint::Length(3),
@@ -153,6 +151,7 @@ impl ProcessTable {
         } else {
             area
         };
+        self.render_area = list_area;
 
         let source = if self.is_searching() {
             &self.filtered_table
@@ -204,6 +203,7 @@ impl ProcessTable {
             .map(|i| i + 1);
         let mut list_state = ListState::default().with_selected(list_selected);
         frame.render_stateful_widget(process_list, list_area, &mut list_state);
+        self.list_offset = list_state.offset();
     }
 }
 

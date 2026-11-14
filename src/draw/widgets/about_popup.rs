@@ -25,14 +25,6 @@ impl AboutPopUp {
             area,
         );
 
-        let about_area = area.centered(Constraint::Percentage(60), Constraint::Percentage(20));
-
-        let popup_block = Block::bordered().title("About Rust-top").title_alignment(Alignment::Center);
-        let inner = popup_block.inner(about_area);
-
-        frame.render_widget(Clear, about_area);
-        frame.render_widget(popup_block, about_area);
-
         let lines = vec![
             Line::from("Terminal system monitoring created with Ratui"),
             Line::from("If you have any suggestions contact Twopic2 on github"),
@@ -45,6 +37,15 @@ impl AboutPopUp {
             Line::from("  - / _    — Decrease refresh rate"),
         ];
 
+        let about_area = area.centered(
+            Constraint::Percentage(60),
+            Constraint::Length(lines.len() as u16 + 2),
+        );
+        let popup_block = Block::bordered().title("About Rust-top").title_alignment(Alignment::Center);
+        let inner = popup_block.inner(about_area);
+
+        frame.render_widget(Clear, about_area);
+        frame.render_widget(popup_block, about_area);
         frame.render_widget(Paragraph::new(lines).alignment(Alignment::Center), inner);
     }
 }

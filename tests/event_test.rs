@@ -12,7 +12,7 @@ use common::proc_row;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use rust_top::draw::widgets::about_popup::AboutPopUp;
 use rust_top::draw::widgets::process_table::{ProcInfoPopup, ProcessTable, SearchState};
-use rust_top::draw::widgets::process_taskbar::ProcessTaskBar;
+use rust_top::draw::widgets::process_taskbar::{ProcessCommands, ProcessTaskBar};
 use rust_top::draw::widgets::refresh_ticker::TickButton;
 use rust_top::event::keystroke_type;
 use std::time::Duration;
@@ -247,10 +247,7 @@ fn enter_commits_the_filter() {
 }
 
 #[test]
-fn typing_a_second_character_wipes_the_results() {
-    // BUG (pinned): apply_filter() clears proc_table after each keystroke, so
-    // the second character filters an already-empty source. Typing anything
-    // longer than one letter always yields an empty result list.
+fn typing_multiple_characters_keeps_matching_results() {
     let mut h = Harness::new();
     h.table.proc_table = vec![
         proc_row(1, "firefox", "firefox", 1.0, 0.0),
@@ -263,27 +260,25 @@ fn typing_a_second_character_wipes_the_results() {
 
     h.type_str("i");
     assert_eq!(h.table.search_input, "fi");
-    assert!(
-        h.table.filtered_table.is_empty(),
-        "the second keystroke filters an emptied proc_table"
-    );
+    assert_eq!(h.table.filtered_table.len(), 1);
+    assert_eq!(h.table.filtered_table[0].pid, 1);
+    assert_eq!(h.table.proc_table.len(), 2);
 }
 
 #[test]
-fn backspace_also_re_filters_an_emptied_table() {
-    // Same root cause: backspace calls apply_filter() against a drained source.
+fn backspace_restores_rows_from_the_full_table() {
     let mut h = Harness::new();
-    h.table.proc_table = vec![proc_row(1, "firefox", "firefox", 1.0, 0.0)];
+    h.table.proc_table = vec![
+        proc_row(1, "firefox", "firefox", 1.0, 0.0),
+        proc_row(2, "bash", "bash", 1.0, 0.0),
+    ];
     h.press(KeyCode::Char('/'));
     h.type_str("f");
     assert_eq!(h.table.filtered_table.len(), 1);
 
     h.press(KeyCode::Backspace);
     assert!(h.table.search_input.is_empty());
-    assert!(
-        h.table.filtered_table.is_empty(),
-        "the row is not restored until the next refresh"
-    );
+    assert_eq!(h.table.filtered_table.len(), 2);
 }
 
 #[test]
@@ -316,29 +311,47 @@ fn esc_clears_a_committed_filter() {
 }
 
 #[test]
-fn every_other_key_is_swallowed_while_a_filter_is_applied() {
+fn normal_keybindings_work_while_a_filter_is_applied() {
     let mut h = Harness::new();
     h.table.search_state = SearchState::FilterApplied;
     h.table.search_input = "fire".into();
     let before = h.tick.get_duration();
 
-    for code in [
-        KeyCode::Char('q'),
-        KeyCode::Char('p'),
-        KeyCode::Char('+'),
-        KeyCode::Char('-'),
-        KeyCode::Char('/'),
-        KeyCode::Char('x'),
-        KeyCode::Enter,
-        KeyCode::Backspace,
-    ] {
-        assert!(!h.press(code), "{code:?} should be swallowed");
-    }
+    h.press(KeyCode::Char('+'));
+    assert!(h.tick.get_duration() > before);
+    h.press(KeyCode::Char('p'));
+    assert!(h.popup.visable);
+    assert!(h.table.search_state == SearchState::FilterApplied);
+    assert_eq!(h.table.search_input, "fire");
+    assert!(h.press(KeyCode::Char('q')));
+}
 
-    assert!(h.table.search_state == SearchState::FilterApplied, "state must not move");
-    assert_eq!(h.table.search_input, "fire", "query must not change");
-    assert_eq!(h.tick.get_duration(), before, "tick rate must not change");
-    assert!(!h.popup.visable, "popup must not open");
+#[test]
+fn slash_restarts_a_committed_search_with_all_rows() {
+    let mut h = Harness::new();
+    h.table.proc_table = vec![proc_row(1, "firefox", "firefox", 1.0, 0.0)];
+    h.table.search_state = SearchState::FilterApplied;
+    h.table.search_input = "missing".into();
+    h.table.apply_filter();
+
+    h.press(KeyCode::Char('/'));
+    assert!(h.table.is_filter_input_active());
+    assert!(h.table.search_input.is_empty());
+    assert_eq!(h.table.filtered_table.len(), 1);
+}
+
+#[test]
+fn k_uses_the_kill_command_and_keeps_rows_when_signalling_fails() {
+    let mut h = Harness::new();
+    h.table.proc_table = vec![proc_row(4242, "prog", "prog", 1.0, 0.0)];
+    h.table.selected_pid = 4242;
+    h.taskbar.command = ProcessCommands::Info;
+
+    h.press(KeyCode::Char('k'));
+    assert_eq!(h.taskbar.command, ProcessCommands::Kill);
+    assert!(!h.info.visable);
+    assert_eq!(h.table.proc_table.len(), 1);
+    assert_eq!(h.table.selected_pid, 4242);
 }
 
 // ------------------------------------------------------------ full round trip

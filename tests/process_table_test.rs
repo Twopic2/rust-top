@@ -188,9 +188,7 @@ fn a_query_matching_nothing_empties_the_filtered_table() {
 }
 
 #[test]
-fn apply_filter_drains_the_source_table() {
-    // Documented behaviour: apply_filter clears proc_table after copying the
-    // matches out, so the unfiltered list only comes back on the next refresh.
+fn apply_filter_preserves_the_source_table() {
     let mut t = table_with(vec![
         proc_row(1, "firefox", "firefox", 1.0, 0.0),
         proc_row(2, "bash", "bash", 1.0, 0.0),
@@ -199,22 +197,18 @@ fn apply_filter_drains_the_source_table() {
     t.apply_filter();
 
     assert_eq!(pids(&t.filtered_table), vec![1]);
-    assert!(t.proc_table.is_empty(), "apply_filter empties proc_table");
+    assert_eq!(pids(&t.proc_table), vec![1, 2]);
 }
 
 #[test]
-fn filtering_twice_without_a_refresh_loses_every_row() {
-    // Direct consequence of the above: the second pass filters an empty source.
+fn filtering_twice_without_a_refresh_keeps_matching_rows() {
     let mut t = table_with(vec![proc_row(1, "firefox", "firefox", 1.0, 0.0)]);
     t.search_input = "fire".into();
     t.apply_filter();
     t.search_input = "f".into();
     t.apply_filter();
 
-    assert!(
-        t.filtered_table.is_empty(),
-        "narrowing a query mid-search drops all rows until the next refresh"
-    );
+    assert_eq!(pids(&t.filtered_table), vec![1]);
 }
 
 // ------------------------------------------------------------- search states
@@ -412,16 +406,12 @@ fn clicking_selects_a_process() {
     ]);
     let _ = common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8)));
 
-    t.handle_click(5, 2);
+    t.handle_click(5, 1);
     assert_eq!(t.selected_pid, 111, "first sorted row is the busiest process");
 }
 
 #[test]
-fn click_row_mapping_is_offset_by_one_from_the_rendered_rows() {
-    // BUG (pinned): render puts the header on area.y and sorted_proc[0] on
-    // area.y + 1, but handle_click subtracts area.y + 2. Rows y..=y+2 all
-    // resolve to index 0, and from y+3 on the click lands one row above the
-    // process the user actually clicked.
+fn clicking_selects_the_process_on_the_rendered_row() {
     let mut t = table_with(vec![
         proc_row(111, "a", "a", 90.0, 0.0),
         proc_row(222, "b", "b", 50.0, 0.0),
@@ -430,14 +420,12 @@ fn click_row_mapping_is_offset_by_one_from_the_rendered_rows() {
     let _ = common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8)));
     assert_eq!(pids(&t.sorted_proc), vec![111, 222, 333]);
 
-    for row in [0, 1, 2] {
+    t.handle_click(5, 0);
+    assert_eq!(t.selected_pid, 0, "the header is not a process");
+    for (row, pid) in [(1, 111), (2, 222), (3, 333)] {
         t.handle_click(5, row);
-        assert_eq!(t.selected_pid, 111, "row {row} saturates to index 0");
+        assert_eq!(t.selected_pid, pid, "row {row}");
     }
-
-    // Row 3 displays pid 333 (header, 111, 222, 333) but selects 222.
-    t.handle_click(5, 3);
-    assert_eq!(t.selected_pid, 222);
 
     t.handle_click(5, 4);
     assert_eq!(t.selected_pid, 333);
@@ -448,7 +436,7 @@ fn clicking_past_the_last_row_keeps_the_previous_selection() {
     let mut t = table_with(vec![proc_row(111, "a", "a", 1.0, 0.0)]);
     let _ = common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8)));
 
-    t.handle_click(5, 2);
+    t.handle_click(5, 1);
     assert_eq!(t.selected_pid, 111);
     t.handle_click(5, 7); // below the single data row
     assert_eq!(t.selected_pid, 111, "an out-of-range index must not clear the selection");
@@ -460,14 +448,45 @@ fn clicking_respects_a_non_zero_widget_origin() {
     let area = Rect::new(10, 4, 40, 6);
     let _ = common::render(60, 12, |f| t.render(f, area));
 
-    t.handle_click(5, 6);
+    t.handle_click(5, 5);
     assert_eq!(t.selected_pid, 0, "column left of the widget");
 
-    t.handle_click(15, 6);
+    t.handle_click(15, 5);
     assert_eq!(t.selected_pid, 111);
 }
 
 // ------------------------------------------------------------ ProcInfoPopup
+
+#[test]
+fn clicking_while_typing_ignores_the_filter_bar_and_header() {
+    let mut t = table_with(vec![proc_row(111, "bash", "bash", 1.0, 0.0)]);
+    t.search_state = SearchState::Searching;
+    t.apply_filter();
+    let area = Rect::new(10, 2, 40, 8);
+    let _ = common::render(60, 12, |f| t.render(f, area));
+
+    for row in 2..6 {
+        t.handle_click(15, row);
+        assert_eq!(t.selected_pid, 0, "filter/header row {row}");
+    }
+    t.handle_click(15, 6);
+    assert_eq!(t.selected_pid, 111);
+}
+
+#[test]
+fn clicking_a_scrolled_list_selects_the_visible_process() {
+    let mut t = table_with((1..=10)
+        .map(|pid| proc_row(pid, "prog", "prog", 1.0, 0.0))
+        .collect());
+    t.selected_pid = 10;
+    let buffer = common::render(60, 3, |f| t.render(f, Rect::new(0, 0, 60, 3)));
+    let text = common::buffer_text(&buffer);
+    for (row, line) in text.lines().enumerate() {
+        let visible_pid: u32 = line.split_whitespace().next().unwrap().parse().unwrap();
+        t.handle_click(5, row as u16);
+        assert_eq!(t.selected_pid, visible_pid);
+    }
+}
 
 #[test]
 fn info_popup_starts_hidden() {

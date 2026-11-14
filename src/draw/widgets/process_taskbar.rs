@@ -84,20 +84,22 @@ impl ProcessTaskBar {
         None
     }
 
-    pub fn signal_process(&self, process_widget: &ProcessTable, info: &mut ProcInfoPopup, sys: &mut System) {
+    /// Returns whether a kill signal was sent successfully.
+    pub fn signal_process(&self, process_widget: &ProcessTable, info: &mut ProcInfoPopup, sys: &mut System) -> bool {
         let pid = process_widget.selected_pid;
-        if pid == 0 { return; }
+        if pid == 0 { return false; }
         match self.command {
-            ProcessCommands::Select => {}
+            ProcessCommands::Select => false,
             ProcessCommands::Kill => Self::kill_proc(Pid::from_u32(pid), sys),
-            ProcessCommands::Info => Self::info_proc(pid, info),
+            ProcessCommands::Info => {
+                Self::info_proc(pid, info);
+                false
+            }
         }
     }
 
-    fn kill_proc(pid: Pid, sys: &mut System) {
-        if let Some(process) = sys.process(pid) {
-            process.kill();
-        }
+    fn kill_proc(pid: Pid, sys: &mut System) -> bool {
+        sys.process(pid).is_some_and(|process| process.kill())
     }
 
     fn info_proc(pid: u32, info: &mut ProcInfoPopup) {

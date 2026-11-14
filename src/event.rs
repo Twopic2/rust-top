@@ -32,8 +32,7 @@ pub fn handle_events(tick_button: &mut TickButton, process_widget: &mut ProcessT
                         match taskbar.handle_click(mouse) {
                             Some(ProcessCommands::Kill) => {
                                 let pid = process_widget.selected_pid;
-                                if pid != 0 {
-                                    taskbar.signal_process(process_widget, info, sys);
+                                if taskbar.signal_process(process_widget, info, sys) {
                                     process_widget.delete_table_entry(pid);
                                 }
                             }
@@ -76,8 +75,8 @@ pub fn keystroke_type(
             process_widget.search_input.clear();
             process_widget.filtered_table.clear();
             process_widget.search_state = SearchState::NoSearch;
+            return false;
         }
-        return false;
     }
 
     if process_widget.is_filter_input_active() {
@@ -110,9 +109,9 @@ pub fn keystroke_type(
             true
         }
         KeyCode::Char('k') => {
+            taskbar.command = ProcessCommands::Kill;
             let pid = process_widget.selected_pid;
-            if pid != 0 {
-                taskbar.signal_process(process_widget, info, sys);
+            if taskbar.signal_process(process_widget, info, sys) {
                 process_widget.delete_table_entry(pid);
             }
             false
@@ -132,6 +131,7 @@ pub fn keystroke_type(
         KeyCode::Char('/') => {
             process_widget.search_state = SearchState::Searching;
             process_widget.search_input.clear();
+            process_widget.apply_filter();
             false
         }
         KeyCode::Char('+') | KeyCode::Char('=') => {

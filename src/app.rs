@@ -14,8 +14,7 @@ use crate::draw::widgets::about_popup::AboutPopUp;
 use crate::draw::widgets::disk_table::DiskTable;
 use crate::draw::widgets::temp_widget::TempWidget;
 use ratatui::{
-    DefaultTerminal, Terminal,
-    backend::Backend,
+    DefaultTerminal,
     layout::{Constraint, Layout},
     style::{Color, Style, Stylize, Modifier},
     symbols::border,
@@ -108,6 +107,9 @@ impl App {
             };
             self.duration_control.render(frame, duration_area);
 
+            /*
+             * Main columns: layout[0] is left, layout[1] is right. 
+            */
             let layout = Layout::horizontal([
                 Constraint::Percentage(50),
                 Constraint::Percentage(50),
@@ -128,13 +130,16 @@ impl App {
             } else {
                 0
             };
-            let sensor_height = temp_widget_height.max(self.collection.voltage_bar.get_height());
 
+            /* 
+                * Left column, top to bottom: CPU info, core usage, total usage, 
+                * sensors, network.
+            */ 
             let left_layout = Layout::vertical([
                 Constraint::Length(cpu_info_height),
                 Constraint::Length(cpu_cores_height),
                 Constraint::Length(3),
-                Constraint::Length(sensor_height),
+                Constraint::Length(temp_widget_height),
                 Constraint::Min(10),
             ]).split(layout[0]);
 
@@ -207,25 +212,27 @@ impl App {
                 mem_area
             );
 
-            let temp_length = if has_temperatures {
-                self.temp_widget.get_length()
-            } else {
-                0
-            };
-            let sensor_layout = Layout::horizontal([
-                Constraint::Length(temp_length),
-                Constraint::Min(20),
-            ]).split(left_layout[3]);
             if has_temperatures {
+                let temp_length = self.temp_widget.get_length().min(left_layout[3].width / 2);
+                let sensor_layout = Layout::horizontal([
+                    Constraint::Length(temp_length),
+                    Constraint::Length(temp_length),
+                    Constraint::Min(0),
+                ]).split(left_layout[3]);
                 self.temp_widget.render(frame, sensor_layout[0]);
+                if !self.collection.voltage_bar.voltages.voltage_read_points.is_empty() {
+                    frame.render_widget(&self.collection.voltage_bar, sensor_layout[1]);
+                }
             }
-            frame.render_widget(&self.collection.voltage_bar, sensor_layout[1]);
 
             self.collection.core_graph.render(frame, left_layout[1], &mut self.collection.sys);
             self.collection.total_cpu_bar.render(frame, left_layout[2]);
 
             self.collection.network_histogram.render(frame, left_layout[4]);
 
+            /* 
+                * Right column, top to bottom: disks, processes/taskbar, CPU power.
+            */
             let disk_height = self.disk_graph.get_height(&mut self.collection.disk_data);
             let right_layout = Layout::vertical([
                 Constraint::Length(disk_height),

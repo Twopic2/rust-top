@@ -134,9 +134,9 @@ fn the_leftmost_three_columns_decrement() {
 
 #[test]
 fn the_trailing_columns_increment() {
-    // " - 2000ms  + " is 13 chars, so the increment zone starts at column 10.
+    // " - " + " 2000ms " + " + " is 14 columns; the final button starts at 11.
     let b = rendered(ms(2000), Rect::new(0, 0, 14, 1));
-    for col in 10..14 {
+    for col in 11..14 {
         assert_eq!(
             b.duration_click(left_click(col, 0)),
             TickCounter::Increment,
@@ -148,7 +148,7 @@ fn the_trailing_columns_increment() {
 #[test]
 fn the_middle_label_is_inert() {
     let b = rendered(ms(2000), Rect::new(0, 0, 14, 1));
-    for col in 3..10 {
+    for col in 3..11 {
         assert_eq!(
             b.duration_click(left_click(col, 0)),
             TickCounter::None,
@@ -161,20 +161,18 @@ fn the_middle_label_is_inert() {
 fn the_increment_zone_moves_with_the_label_width() {
     // A three-digit duration renders one char shorter, shifting the zone left.
     let b = rendered(ms(900), Rect::new(0, 0, 14, 1));
-    assert_eq!(b.duration_click(left_click(9, 0)), TickCounter::Increment);
-    assert_eq!(b.duration_click(left_click(8, 0)), TickCounter::None);
+    assert_eq!(b.duration_click(left_click(10, 0)), TickCounter::Increment);
+    assert_eq!(b.duration_click(left_click(9, 0)), TickCounter::None);
+    assert_eq!(b.duration_click(left_click(13, 0)), TickCounter::None);
 }
 
 #[test]
-fn the_hit_box_is_computed_from_a_narrower_string_than_is_drawn() {
-    // BUG (pinned): render draws " - " + " {ms}ms " + " + " (14 cols at 2000ms)
-    // while duration_click measures " - {ms}ms  + " (13 cols). The increment
-    // zone therefore starts one column left of the drawn "+".
+fn the_label_padding_does_not_activate_the_increment_button() {
     let b = rendered(ms(2000), Rect::new(0, 0, 14, 1));
     assert_eq!(
         b.duration_click(left_click(10, 0)),
-        TickCounter::Increment,
-        "column 10 renders as blank padding but still increments"
+        TickCounter::None,
+        "column 10 belongs to the duration label"
     );
 }
 
@@ -189,7 +187,7 @@ fn clicks_outside_the_rendered_row_are_ignored() {
 fn a_non_zero_origin_shifts_both_zones() {
     let b = rendered(ms(2000), Rect::new(10, 2, 14, 1));
     assert_eq!(b.duration_click(left_click(10, 2)), TickCounter::Decrement);
-    assert_eq!(b.duration_click(left_click(20, 2)), TickCounter::Increment);
+    assert_eq!(b.duration_click(left_click(21, 2)), TickCounter::Increment);
     assert_eq!(b.duration_click(left_click(9, 2)), TickCounter::None, "left of the widget");
     assert_eq!(b.duration_click(left_click(15, 2)), TickCounter::None, "the label");
 }

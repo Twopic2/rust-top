@@ -303,17 +303,12 @@ fn temp_widget_length_never_drops_below_the_floor() {
 
 #[test]
 fn temp_widget_filter_is_idempotent_on_geometry_bounds() {
-    // BUG (pinned): filter() increments line_count without resetting it, so
-    // calling it twice double-counts and inflates the widget height.
     let mut w = TempWidget::default();
     w.filter();
     let once = w.get_height();
     w.filter();
     let twice = w.get_height();
-    assert!(
-        twice >= once,
-        "height should never shrink between filter passes"
-    );
+    assert_eq!(twice, once, "filtering the same sensors must preserve the height");
 }
 
 #[test]
@@ -444,15 +439,15 @@ fn about_popup_lists_every_keybind_when_it_has_room() {
 }
 
 #[test]
-fn about_popup_clips_its_keybinds_in_a_short_terminal() {
-    // BUG (pinned): the popup is sized at Percentage(20) of the screen height,
-    // so its own 9-line body only fits from about 40 rows up. On a normal
-    // 24-row terminal the keybind list the popup exists to show is cut off.
+fn about_popup_shows_all_keybinds_in_a_standard_terminal() {
     let popup = AboutPopUp { visable: true };
 
     let short = common::buffer_text(&common::render(90, 24, |f| popup.render(f, Rect::new(0, 0, 90, 24))));
     assert!(short.contains("About Rust-top"), "title should still show:\n{short}");
-    assert!(!short.contains("Basic Keybinds"), "keybinds unexpectedly fit at 24 rows");
+    for binding in ["Basic Keybinds", "Quit", "Kill selected process", "Search/filter processes",
+        "Increase refresh rate", "Decrease refresh rate"] {
+        assert!(short.contains(binding), "missing {binding}:\n{short}");
+    }
 
     let tall = common::buffer_text(&common::render(90, 40, |f| popup.render(f, Rect::new(0, 0, 90, 40))));
     assert!(tall.contains("Basic Keybinds"), "keybinds should fit at 40 rows:\n{tall}");

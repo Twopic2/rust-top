@@ -34,7 +34,6 @@ pub struct TopCollection {
 impl TopCollection {
     pub fn new() -> Self {
         let mut sys = System::new_all();
-        let lm_sensors = lm_sensors::Initializer::default().initialize().unwrap();
 
         let cpu_model_lines = if let Some(cpu_model) = CpuInfo::display_cpu_model(&mut sys) {
             Line::from(cpu_model)
@@ -64,7 +63,10 @@ impl TopCollection {
         let process_tree = ProcessTable::new();
         let cpu_power = CpuPowerUsage::default();
         let cpu_package = CpuPackageCap::new().ok();
-        let voltages = Voltage::new(lm_sensors);
+        let voltages = lm_sensors::Initializer::default()
+            .initialize()
+            .map(Voltage::new)
+            .unwrap();
         let voltage_bar = VoltageUsage::new(voltages);
 
         Self {
@@ -88,6 +90,11 @@ impl TopCollection {
     }
 
     pub fn update_data(&mut self) {
+        self.mem_lines = MemInfo::display_memory(&mut self.sys)
+            .into_iter()
+            .map(Line::from)
+            .collect();
+
         let core_usages = CpuInfo::get_core_usages(&mut self.sys);
 
         for (i, usage) in core_usages.iter().enumerate() {
