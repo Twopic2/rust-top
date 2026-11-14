@@ -8,11 +8,13 @@ use crate::data::cpu::CpuInfo;
 use crate::data::mem::MemInfo;
 use crate::data::disk::DiskData;
 use crate::data::power::CpuPackageCap;
+use crate::data::voltage::Voltage;
 use crate::draw::widgets::cpu_graph::{MultiCoreGraph, ColorScheme};
-use crate::draw::widgets::cpu_bar::{TotalCoreBar, TempBar, BarColorScheme};
+use crate::draw::widgets::cpu_bar::{TotalCoreBar, BarColorScheme};
 use crate::draw::widgets::cpu_power::CpuPowerUsage;
 use crate::draw::widgets::network_graph::NetworkGraph;
 use crate::draw::widgets::process_table::ProcessTable;
+use crate::draw::widgets::voltage_bar::VoltageUsage;
 
 pub struct TopCollection {
     pub sys: System,
@@ -23,15 +25,16 @@ pub struct TopCollection {
     pub total_cpu_bar: TotalCoreBar,
     pub cpu_power: CpuPowerUsage,
     cpu_package: Option<CpuPackageCap>,
-    pub temp_bar: TempBar,
     pub network_histogram: NetworkGraph,
     pub disk_data: DiskData,
     pub process_tree: ProcessTable,
+    pub voltage_bar: VoltageUsage,
 }
 
 impl TopCollection {
     pub fn new() -> Self {
         let mut sys = System::new_all();
+        let lm_sensors = lm_sensors::Initializer::default().initialize().unwrap();
 
         let cpu_model_lines = if let Some(cpu_model) = CpuInfo::display_cpu_model(&mut sys) {
             Line::from(cpu_model)
@@ -56,12 +59,13 @@ impl TopCollection {
         let num_cores = CpuInfo::num_cores(&mut sys);
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
         let total_cpu_bar = TotalCoreBar::new(BarColorScheme::Green);
-        let temp_bar = TempBar::new(BarColorScheme::Green);
         let network_histogram = NetworkGraph::new(60);
         let disk_data = DiskData::default();
         let process_tree = ProcessTable::new();
         let cpu_power = CpuPowerUsage::default();
         let cpu_package = CpuPackageCap::new().ok();
+        let voltages = Voltage::new(lm_sensors);
+        let voltage_bar = VoltageUsage::new(voltages);
 
         Self {
             sys,
@@ -72,10 +76,10 @@ impl TopCollection {
             total_cpu_bar,
             cpu_power,
             cpu_package,
-            temp_bar,
             network_histogram,
             disk_data,
             process_tree,
+            voltage_bar,
         }
     }
 
@@ -99,12 +103,13 @@ impl TopCollection {
             None
         };
         self.cpu_power.update(watts);
-        self.temp_bar.update();
 
         self.network_histogram.update();
 
         self.disk_data.refresh(&mut self.sys);
         self.disk_data.collect_all(&mut self.sys);
+
+        self.voltage_bar.voltages.refresh();
 
         self.process_tree.refresh(&mut self.sys);
     }

@@ -80,6 +80,7 @@ fn repeated_cycles_do_not_grow_any_collection() {
     c.refresh_timer();
     c.update_data();
     let disks_after_first = c.disk_data.disk_name.len();
+    let voltages_after_first = c.voltage_bar.voltages.voltage_read_points.len();
 
     for _ in 0..3 {
         c.refresh_timer();
@@ -94,6 +95,11 @@ fn repeated_cycles_do_not_grow_any_collection() {
     );
     assert!(lengths_match(&c));
     assert_eq!(c.mem_lines.len(), 2);
+    assert_eq!(
+        c.voltage_bar.voltages.voltage_read_points.len(),
+        voltages_after_first,
+        "voltage readings must be replaced, not appended"
+    );
 }
 
 #[test]

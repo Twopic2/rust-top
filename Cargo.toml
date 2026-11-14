@@ -30,6 +30,7 @@ anyhow = "1.0.104"
 
 dhat = { version = "0.3", optional = true }
 sysfs = "0.0.2"
+lm-sensors = "0.5.1"
 
 [features]
 dhat-heap = ["dep:dhat"]

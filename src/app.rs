@@ -122,17 +122,19 @@ impl App {
             let cpu_cores_height = (num_rows + 2).max(5) as u16;
             let cpu_info_height = (self.collection.cpu_model_lines.spans.len().max(self.collection.cpu_cache_lines.len()).max(2) + 2) as u16;
 
-            let temp_widget_height = if TempData::all_temps().is_some() {
-                self.temp_widget.get_height().max(self.collection.temp_bar.get_height() + 2)
+            let has_temperatures = TempData::all_temps().is_some();
+            let temp_widget_height = if has_temperatures {
+                self.temp_widget.get_height()
             } else {
                 0
             };
+            let sensor_height = temp_widget_height.max(self.collection.voltage_bar.get_height());
 
             let left_layout = Layout::vertical([
                 Constraint::Length(cpu_info_height),
                 Constraint::Length(cpu_cores_height),
                 Constraint::Length(3),
-                Constraint::Length(temp_widget_height),
+                Constraint::Length(sensor_height),
                 Constraint::Min(10),
             ]).split(layout[0]);
 
@@ -205,15 +207,19 @@ impl App {
                 mem_area
             );
 
-            if TempData::all_temps().is_some() {
-                let temp_length = self.temp_widget.get_length();
-                let temp_layout = Layout::horizontal([
-                    Constraint::Length(temp_length),
-                    Constraint::Min(0),
-                ]).split(left_layout[3]);
-                self.temp_widget.render(frame, temp_layout[0]);
-                self.collection.temp_bar.render(frame, temp_layout[1]);
+            let temp_length = if has_temperatures {
+                self.temp_widget.get_length()
+            } else {
+                0
+            };
+            let sensor_layout = Layout::horizontal([
+                Constraint::Length(temp_length),
+                Constraint::Min(20),
+            ]).split(left_layout[3]);
+            if has_temperatures {
+                self.temp_widget.render(frame, sensor_layout[0]);
             }
+            frame.render_widget(&self.collection.voltage_bar, sensor_layout[1]);
 
             self.collection.core_graph.render(frame, left_layout[1], &mut self.collection.sys);
             self.collection.total_cpu_bar.render(frame, left_layout[2]);

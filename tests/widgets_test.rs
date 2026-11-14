@@ -1,4 +1,4 @@
-//! The remaining draw widgets: core grid, CPU/temperature bars, disk table,
+//! The remaining draw widgets: core grid, CPU usage bar, disk table,
 //! temperature panel, network graph and the about popup.
 
 mod common;
@@ -6,7 +6,7 @@ mod common;
 use ratatui::layout::Rect;
 use rust_top::data::disk::DiskData;
 use rust_top::draw::widgets::about_popup::AboutPopUp;
-use rust_top::draw::widgets::cpu_bar::{BarColorScheme, TempBar, TotalCoreBar};
+use rust_top::draw::widgets::cpu_bar::{BarColorScheme, TotalCoreBar};
 use rust_top::draw::widgets::cpu_graph::{ColorScheme, MultiCoreGraph};
 use rust_top::draw::widgets::disk_table::DiskTable;
 use rust_top::draw::widgets::network_graph::NetworkGraph;
@@ -194,55 +194,6 @@ fn total_bar_survives_a_narrow_area() {
     bar.update(&[50.0]);
     for w in [1, 4, 8, 11] {
         let _ = common::render(20, 3, |f| bar.render(f, Rect::new(0, 0, w, 3)));
-    }
-}
-
-// ------------------------------------------------------------------- TempBar
-
-#[test]
-fn temp_bar_starts_with_a_minimum_height() {
-    // No sensors read yet, so the height collapses to the 1-row minimum + borders.
-    let bar = TempBar::new(BarColorScheme::Green);
-    assert_eq!(bar.get_height(), 3);
-}
-
-#[test]
-fn temp_bar_height_stays_within_its_two_row_grid() {
-    // NOTE: on Linux get_height() counts [cpu, disk, ddr, ddr] — nic_temp is
-    // missing and ddr_temp is counted twice, so a NIC-only reading adds nothing.
-    let mut bar = TempBar::new(BarColorScheme::Green);
-    bar.update();
-    let h = bar.get_height();
-    assert!((3..=4).contains(&h), "unexpected temp bar height {h}");
-}
-
-#[test]
-fn temp_bar_renders_its_title() {
-    let mut bar = TempBar::new(BarColorScheme::Green);
-    bar.update();
-    let text = common::buffer_text(&common::render(60, 6, |f| bar.render(f, Rect::new(0, 0, 60, 6))));
-    assert!(text.contains("Hardware Temperature"), "missing title:\n{text}");
-}
-
-#[test]
-fn temp_bar_labels_every_sensor_it_shows_with_a_celsius_value() {
-    let mut bar = TempBar::new(BarColorScheme::Green);
-    bar.update();
-    let text = common::buffer_text(&common::render(70, 6, |f| bar.render(f, Rect::new(0, 0, 70, 6))));
-
-    for label in ["CPU", "Disk", "Nic", "DDR"] {
-        if text.contains(&format!("{label}:")) {
-            assert!(text.contains('°'), "{label} rendered without a unit:\n{text}");
-        }
-    }
-}
-
-#[test]
-fn temp_bar_survives_a_tiny_area() {
-    let mut bar = TempBar::new(BarColorScheme::Green);
-    bar.update();
-    for (w, h) in [(1, 1), (10, 2), (21, 1), (22, 3)] {
-        let _ = common::render(30, 6, |f| bar.render(f, Rect::new(0, 0, w, h)));
     }
 }
 
