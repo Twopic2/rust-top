@@ -1,9 +1,9 @@
 use ratatui::{
-    Frame,
+    buffer::Buffer,
     layout::Rect,
-    widgets::{Block, Borders, Paragraph},
-    style::{Color, Style, Modifier},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 
 pub enum BarColorScheme {
@@ -50,15 +50,17 @@ impl TotalCoreBar {
             self.total_usage = core_usages.iter().sum::<f64>() / core_usages.len() as f64;
         }
     }
+}
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
+impl Widget for &TotalCoreBar {
+    fn render(self, area: Rect, buf: &mut Buffer) {
         let block = Block::default()
             .borders(Borders::ALL)
             .title("Total CPU Usage")
             .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
 
         let inner_area = block.inner(area);
-        frame.render_widget(block, area);
+        block.render(area, buf);
 
         if inner_area.width < 10 {
             return;
@@ -72,24 +74,21 @@ impl TotalCoreBar {
         let mut spans = Vec::new();
         spans.push(Span::styled(
             format!("CPU: {:>5.1}% ", self.total_usage),
-            Style::default().fg(color).add_modifier(Modifier::BOLD)
+            Style::default().fg(color).add_modifier(Modifier::BOLD),
         ));
 
         if filled > 0 {
-            spans.push(Span::styled(
-                "█".repeat(filled),
-                Style::default().fg(color)
-            ));
+            spans.push(Span::styled("█".repeat(filled), Style::default().fg(color)));
         }
         if empty > 0 {
             spans.push(Span::styled(
                 "░".repeat(empty),
-                Style::default().fg(Color::DarkGray)
+                Style::default().fg(Color::DarkGray),
             ));
         }
 
         let line = Line::from(spans);
         let paragraph = Paragraph::new(vec![line]);
-        frame.render_widget(paragraph, inner_area);
+        paragraph.render(inner_area, buf);
     }
 }

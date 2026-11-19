@@ -1,31 +1,33 @@
 use std::{io, time::Duration};
 
-use crossterm::event::EnableMouseCapture;
-use crossterm::execute;
 use crate::collection::TopCollection;
-use crate::data::temp::TempData;
-use crate::data::os::OsInfo;
 use crate::data::cpu::CpuInfo;
-use crate::{event::handle_events};
-use crate::draw::widgets::refresh_ticker::TickButton;
-use crate::draw::widgets::process_table::ProcInfoPopup;
-use crate::draw::widgets::process_taskbar::ProcessTaskBar;
+#[cfg(target_os = "macos")]
+use crate::data::darwin::cache::CacheMac;
+use crate::data::mem::MemInfo;
+use crate::data::os::OsInfo;
+use crate::data::temp::TempData;
 use crate::draw::widgets::about_popup::AboutPopUp;
 use crate::draw::widgets::disk_table::DiskTable;
+use crate::draw::widgets::process_table::ProcInfoPopup;
+use crate::draw::widgets::process_taskbar::ProcessTaskBar;
+use crate::draw::widgets::refresh_ticker::TickButton;
 use crate::draw::widgets::temp_widget::TempWidget;
+use crate::event::handle_events;
+use crossterm::event::EnableMouseCapture;
+use crossterm::execute;
 use ratatui::{
-    DefaultTerminal,
     layout::{Constraint, Layout},
-    style::{Color, Style, Stylize, Modifier},
+    style::{Color, Modifier, Style, Stylize},
     symbols::border,
     text::Line,
     widgets::{Block, Borders, Paragraph},
+    DefaultTerminal,
 };
 
 pub struct App {
     pub(crate) collection: TopCollection,
     temp_widget: TempWidget,
-    disk_graph: DiskTable,
     duration_control: TickButton,
     process_taskbar: ProcessTaskBar,
     proc_info_popup: ProcInfoPopup,
@@ -35,7 +37,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         let collection = TopCollection::new();
-        let disk_graph = DiskTable::new();
+
         let duration_control = TickButton::new(Duration::from_millis(2000));
         let process_taskbar = ProcessTaskBar::new();
 
@@ -47,7 +49,6 @@ impl App {
         Self {
             collection,
             temp_widget,
-            disk_graph,
             duration_control,
             process_taskbar,
             proc_info_popup: ProcInfoPopup::new(),
@@ -82,10 +83,28 @@ impl App {
     fn draw(&mut self, terminal: &mut DefaultTerminal) -> io::Result<()> {
         self.proc_info_popup.refresh(&mut self.collection.sys);
         terminal.draw(|frame| {
-            let instructions = Line::from(vec![
-                " Quit ".red().bold().into(),
-                "<Q/Esc> ".red().bold(),
-            ]);
+            let cpu_model_lines =
+                if let Some(cpu_model) = CpuInfo::display_cpu_model(&mut self.collection.sys) {
+                    Line::from(cpu_model)
+                } else {
+                    Line::from("Cpu Model isn't here")
+                };
+
+            #[cfg(target_os = "macos")]
+            let cpu_cache_lines = CacheMac::cache_lines();
+            #[cfg(not(target_os = "macos"))]
+            let cpu_cache_lines: Vec<Line> = CpuInfo::display_cpu_cache()
+                .into_iter()
+                .map(|(key, value)| Line::from(format!("{}: {} kb", key, value)))
+                .collect();
+
+            let mem_lines: Vec<Line> = MemInfo::display_memory(&mut self.collection.sys)
+                .into_iter()
+                .map(Line::from)
+                .collect();
+
+            let instructions =
+                Line::from(vec![" Quit ".red().bold().into(), "<Q/Esc> ".red().bold()]);
 
             let hostname_output = OsInfo::display_host_name().unwrap();
 
@@ -105,15 +124,14 @@ impl App {
                 width: duration_text_len,
                 height: 1,
             };
-            self.duration_control.render(frame, duration_area);
+            frame.render_widget(&mut self.duration_control, duration_area);
 
             /*
-             * Main columns: layout[0] is left, layout[1] is right. 
-            */
-            let layout = Layout::horizontal([
-                Constraint::Percentage(50),
-                Constraint::Percentage(50),
-            ]).split(inner_area);
+             * Main columns: layout[0] is left, layout[1] is right.
+             */
+            let layout =
+                Layout::horizontal([Constraint::Percentage(50), Constraint::Percentage(50)])
+                    .split(inner_area);
 
             let num_cores = CpuInfo::num_cores(&mut self.collection.sys);
             let left_width = layout[0].width.saturating_sub(2) as usize;
@@ -122,7 +140,12 @@ impl App {
             let cores_per_row = (left_width / (label_width + min_bar_width)).max(1);
             let num_rows = (num_cores + cores_per_row - 1) / cores_per_row;
             let cpu_cores_height = (num_rows + 2).max(5) as u16;
-            let cpu_info_height = (self.collection.cpu_model_lines.spans.len().max(self.collection.cpu_cache_lines.len()).max(2) + 2) as u16;
+            let cpu_info_height = (cpu_model_lines
+                .spans
+                .len()
+                .max(cpu_cache_lines.len())
+                .max(2)
+                + 2) as u16;
 
             let has_temperatures = TempData::all_temps().is_some();
             let temp_widget_height = if has_temperatures {
@@ -131,17 +154,18 @@ impl App {
                 0
             };
 
-            /* 
-                * Left column, top to bottom: CPU info, core usage, total usage, 
-                * sensors, network.
-            */ 
+            /*
+             * Left column, top to bottom: CPU info, core usage, total usage,
+             * sensors, network.
+             */
             let left_layout = Layout::vertical([
                 Constraint::Length(cpu_info_height),
                 Constraint::Length(cpu_cores_height),
                 Constraint::Length(3),
                 Constraint::Length(temp_widget_height),
                 Constraint::Min(10),
-            ]).split(layout[0]);
+            ])
+            .split(layout[0]);
 
             let mut cpu_lines: Vec<Line> = Vec::new();
 
@@ -152,10 +176,12 @@ impl App {
                 cpu_lines.push(Line::from(core));
             }
 
-            let cpu_model_content_width = self.collection.cpu_model_lines.iter()
+            let cpu_model_content_width = cpu_model_lines
+                .iter()
                 .map(|line| line.to_string().len())
                 .max()
-                .unwrap_or(20) + 4;
+                .unwrap_or(20)
+                + 4;
 
             let cpu_model_area = ratatui::layout::Rect {
                 x: left_layout[0].x,
@@ -165,36 +191,48 @@ impl App {
             };
 
             frame.render_widget(
-                Paragraph::new(self.collection.cpu_model_lines.clone())
-                    .block(Block::new()
+                Paragraph::new(cpu_model_lines).block(
+                    Block::new()
                         .borders(Borders::ALL)
                         .title("CPU Model")
-                        .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))),
-                cpu_model_area
+                        .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
+                ),
+                cpu_model_area,
             );
 
-            let cpu_cache_content_width = self.collection.cpu_cache_lines.iter()
+            let cpu_cache_content_width = cpu_cache_lines
+                .iter()
                 .map(|line| line.to_string().len())
                 .max()
-                .unwrap_or(20) + 4;
+                .unwrap_or(20)
+                + 4;
 
             let cpu_cache_area = ratatui::layout::Rect {
                 x: cpu_model_area.x + cpu_model_area.width,
                 y: left_layout[0].y,
-                width: cpu_cache_content_width.min((left_layout[0].width - cpu_model_area.width) as usize) as u16,
+                width: cpu_cache_content_width
+                    .min((left_layout[0].width - cpu_model_area.width) as usize)
+                    as u16,
                 height: left_layout[0].height,
             };
 
             frame.render_widget(
-                Paragraph::new(self.collection.cpu_cache_lines.clone())
-                    .block(Block::new()
+                Paragraph::new(cpu_cache_lines).block(
+                    Block::new()
                         .borders(Borders::ALL)
                         .title("CPU Cache")
-                        .title_style(Style::default().fg(Color::DarkGray).add_modifier(Modifier::BOLD))),
-                cpu_cache_area
+                        .title_style(
+                            Style::default()
+                                .fg(Color::DarkGray)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                ),
+                cpu_cache_area,
             );
 
-            let remaining_width = left_layout[0].width.saturating_sub(cpu_model_area.width + cpu_cache_area.width);
+            let remaining_width = left_layout[0]
+                .width
+                .saturating_sub(cpu_model_area.width + cpu_cache_area.width);
 
             let mem_area = ratatui::layout::Rect {
                 x: cpu_cache_area.x + cpu_cache_area.width,
@@ -204,12 +242,17 @@ impl App {
             };
 
             frame.render_widget(
-                Paragraph::new(self.collection.mem_lines.clone())
-                    .block(Block::new()
+                Paragraph::new(mem_lines).block(
+                    Block::new()
                         .borders(Borders::ALL)
                         .title("Memory")
-                        .title_style(Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD))),
-                mem_area
+                        .title_style(
+                            Style::default()
+                                .fg(Color::Magenta)
+                                .add_modifier(Modifier::BOLD),
+                        ),
+                ),
+                mem_area,
             );
 
             if has_temperatures {
@@ -217,50 +260,57 @@ impl App {
                 let sensor_layout = Layout::horizontal([
                     Constraint::Length(temp_length),
                     Constraint::Length(temp_length),
-                    Constraint::Min(0),
+                    Constraint::Length(temp_length),
                 ]).split(left_layout[3]);
-                self.temp_widget.render(frame, sensor_layout[0]);
-                if !self.collection.voltage_bar.voltages.voltage_read_points.is_empty() {
+                frame.render_widget(&self.temp_widget, sensor_layout[0]);
+            
+                if !self.collection.voltage_bar.is_empty_voltage_endpoints() {
                     frame.render_widget(&self.collection.voltage_bar, sensor_layout[1]);
                 }
+
+                // TODO add fail point
+                frame.render_widget(&self.collection.cpu_power, sensor_layout[2]);
             }
 
-            self.collection.core_graph.render(frame, left_layout[1], &mut self.collection.sys);
-            self.collection.total_cpu_bar.render(frame, left_layout[2]);
+            frame.render_widget(&self.collection.core_graph, left_layout[1]);
+            frame.render_widget(&self.collection.total_cpu_bar, left_layout[2]);
 
-            self.collection.network_histogram.render(frame, left_layout[4]);
+            frame.render_widget(&self.collection.network_histogram, left_layout[4]);
 
-            /* 
-                * Right column, top to bottom: disks, processes/taskbar, CPU power.
-            */
-            let disk_height = self.disk_graph.get_height(&mut self.collection.disk_data);
+            /*
+             * Right column, top to bottom: disks, processes/taskbar
+             */
+            let disk_graph = DiskTable::new(&self.collection.disk_data);
+            let disk_height = disk_graph.get_height();
             let right_layout = Layout::vertical([
                 Constraint::Length(disk_height),
                 Constraint::Min(10),
-                Constraint::Length(3),
-            ]).split(layout[1]);
+            ])
+            .split(layout[1]);
 
-            self.disk_graph.render(frame, right_layout[0], &mut self.collection.disk_data);
+            frame.render_widget(&disk_graph, right_layout[0]);
 
             let proc_block = Block::new()
                 .borders(Borders::ALL)
                 .title("Processes")
-                .title_style(Style::default().fg(Color::Green).add_modifier(Modifier::BOLD));
+                .title_style(
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD),
+                );
             let proc_inner = proc_block.inner(right_layout[1]);
             frame.render_widget(proc_block, right_layout[1]);
 
-            let proc_split = Layout::vertical([
-                Constraint::Min(1),
-                Constraint::Length(1),
-            ]).split(proc_inner);
+            let proc_split =
+                Layout::vertical([Constraint::Min(1), Constraint::Length(1)]).split(proc_inner);
 
-            self.collection.process_tree.render(frame, proc_split[0]);
-            self.process_taskbar.render(frame, proc_split[1], self.collection.process_tree.selected_pid);
+            frame.render_widget(&mut self.collection.process_tree, proc_split[0]);
+            self.process_taskbar
+                .set_selected_pid(self.collection.process_tree.selected_pid);
+            frame.render_widget(&mut self.process_taskbar, proc_split[1]);
 
-            frame.render_widget(&self.collection.cpu_power, right_layout[2]);
-
-            self.proc_info_popup.render(frame, frame.area());
-            self.popup.render(frame, frame.area());
+            frame.render_widget(&self.proc_info_popup, frame.area());
+            frame.render_widget(&self.popup, frame.area());
         })?;
         Ok(())
     }

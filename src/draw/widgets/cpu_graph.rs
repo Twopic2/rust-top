@@ -1,14 +1,11 @@
 use indexmap::IndexMap;
 use ratatui::{
-    Frame,
+    buffer::Buffer,
     layout::Rect,
-    widgets::{Block, Borders, Paragraph},
-    style::{Color, Style, Modifier},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Widget},
 };
-
-use sysinfo::System;
-use crate::data::cpu::CpuInfo;
 
 #[derive(Clone, Copy)]
 pub enum ColorScheme {
@@ -70,6 +67,7 @@ impl ColorScheme {
 pub struct MultiCoreGraph {
     pub cores: IndexMap<usize, f64>,
     pub color_scheme: ColorScheme,
+    cpu_frequency_mhz: u64,
 }
 
 impl MultiCoreGraph {
@@ -78,33 +76,15 @@ impl MultiCoreGraph {
         Self {
             cores,
             color_scheme,
+            cpu_frequency_mhz: 0,
         }
     }
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect, sys: &mut System) {
-        let cpu_freq = match CpuInfo::display_cpu_frequency(sys) {
-            Some(cpu_freq) => cpu_freq,
-            None => 0,
-        };
-        
-        let formated_freq = format!("{:.2} GHz", cpu_freq as f64 / 1000.0);
-
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title("Cpu Cores")
-            .title(Line::from(formated_freq).right_aligned())
-            .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
-
-        let inner_area = block.inner(area);
-        frame.render_widget(block, area);
-
-        if inner_area.height < 2 || inner_area.width < 2 {
-            return;
-        }
-
-        let lines = self.generate_core_grid(inner_area.width as usize, inner_area.height as usize);
-        let paragraph = Paragraph::new(lines);
-        frame.render_widget(paragraph, inner_area);
+    /// Store the CPU snapshot before rendering, with frequency in MHz.
+    pub fn update(&mut self, core_usages: &[f64], cpu_frequency_mhz: u64) {
+        self.cores.clear();
+        self.cores.extend(core_usages.iter().copied().enumerate());
+        self.cpu_frequency_mhz = cpu_frequency_mhz;
     }
 
     fn generate_core_grid(&self, width: usize, height: usize) -> Vec<Line<'static>> {
@@ -132,26 +112,23 @@ impl MultiCoreGraph {
 
                 spans.push(Span::styled(
                     format!("C{:<2}", core_idx),
-                    Style::default().fg(Color::White).bold()
+                    Style::default().fg(Color::White).bold(),
                 ));
                 spans.push(Span::styled(
                     format!(" {:>3.0}% ", current),
-                    Style::default().fg(color).add_modifier(Modifier::BOLD)
+                    Style::default().fg(color).add_modifier(Modifier::BOLD),
                 ));
 
                 let filled = ((current / 100.0) * bar_width as f64) as usize;
                 let empty = bar_width.saturating_sub(filled);
 
                 if filled > 0 {
-                    spans.push(Span::styled(
-                        "█".repeat(filled),
-                        Style::default().fg(color)
-                    ));
+                    spans.push(Span::styled("█".repeat(filled), Style::default().fg(color)));
                 }
                 if empty > 0 {
                     spans.push(Span::styled(
                         "░".repeat(empty),
-                        Style::default().fg(Color::DarkGray)
+                        Style::default().fg(Color::DarkGray),
                     ));
                 }
 
@@ -164,5 +141,26 @@ impl MultiCoreGraph {
         }
 
         lines
+    }
+}
+
+impl Widget for &MultiCoreGraph {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        let formatted_freq = format!("{:.2} GHz", self.cpu_frequency_mhz as f64 / 1000.0);
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title("Cpu Cores")
+            .title(Line::from(formatted_freq).right_aligned())
+            .title_style(Style::default().fg(Color::Red).add_modifier(Modifier::BOLD));
+
+        let inner_area = block.inner(area);
+        block.render(area, buf);
+
+        if inner_area.height < 2 || inner_area.width < 2 {
+            return;
+        }
+
+        let lines = self.generate_core_grid(inner_area.width as usize, inner_area.height as usize);
+        Paragraph::new(lines).render(inner_area, buf);
     }
 }

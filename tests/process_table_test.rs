@@ -116,7 +116,13 @@ fn same_pid_with_different_cpu_values_is_kept_twice() {
 fn sorting_preserves_every_field() {
     let t = ProcessTable::new();
     let sorted = t.get_sorted_processes(vec![proc_row_with_io(
-        7, "prog", "prog --flag", 3.5, 2.5, 111, 222,
+        7,
+        "prog",
+        "prog --flag",
+        3.5,
+        2.5,
+        111,
+        222,
     )]);
     let row = &sorted[0];
     assert_eq!(row.pid, 7);
@@ -165,7 +171,10 @@ fn filter_matches_prefixes_only_not_substrings() {
     let mut t = table_with(vec![proc_row(1, "firefox", "firefox", 1.0, 0.0)]);
     t.search_input = "fox".into();
     t.apply_filter();
-    assert!(t.filtered_table.is_empty(), "starts_with must not match mid-word");
+    assert!(
+        t.filtered_table.is_empty(),
+        "starts_with must not match mid-word"
+    );
 }
 
 #[test]
@@ -246,7 +255,10 @@ fn only_the_typing_state_activates_the_filter_input() {
 #[test]
 fn deleting_an_entry_removes_it_from_all_three_tables() {
     let mut t = ProcessTable::new();
-    t.proc_table = vec![proc_row(1, "a", "a", 1.0, 0.0), proc_row(2, "b", "b", 1.0, 0.0)];
+    t.proc_table = vec![
+        proc_row(1, "a", "a", 1.0, 0.0),
+        proc_row(2, "b", "b", 1.0, 0.0),
+    ];
     t.filtered_table = t.proc_table.clone();
     t.sorted_proc = t.proc_table.clone();
 
@@ -277,7 +289,10 @@ fn deleting_an_unknown_pid_is_a_no_op_on_the_rows() {
 #[test]
 fn deleting_removes_every_row_sharing_that_pid() {
     let mut t = ProcessTable::new();
-    t.proc_table = vec![proc_row(1, "a", "a", 1.0, 0.0), proc_row(1, "b", "b", 2.0, 0.0)];
+    t.proc_table = vec![
+        proc_row(1, "a", "a", 1.0, 0.0),
+        proc_row(1, "b", "b", 2.0, 0.0),
+    ];
     t.delete_table_entry(1);
     assert!(t.proc_table.is_empty());
 }
@@ -287,7 +302,7 @@ fn deleting_removes_every_row_sharing_that_pid() {
 #[test]
 fn render_draws_the_column_header() {
     let mut t = table_with(vec![proc_row(1, "bash", "bash", 1.0, 1.0)]);
-    let buf = common::render(80, 6, |f| t.render(f, Rect::new(0, 0, 80, 6)));
+    let buf = common::render(80, 6, |f| f.render_widget(&mut t, Rect::new(0, 0, 80, 6)));
     let text = common::buffer_text(&buf);
 
     for header in ["PID", "CPU", "MEM", "Program", "Command"] {
@@ -301,7 +316,7 @@ fn render_lists_rows_sorted_by_cpu_descending() {
         proc_row(111, "low", "low", 1.0, 0.0),
         proc_row(222, "high", "high", 90.0, 0.0),
     ]);
-    let buf = common::render(80, 6, |f| t.render(f, Rect::new(0, 0, 80, 6)));
+    let buf = common::render(80, 6, |f| f.render_widget(&mut t, Rect::new(0, 0, 80, 6)));
     let text = common::buffer_text(&buf);
 
     let high = text.find("222").expect("high-cpu row rendered");
@@ -316,7 +331,7 @@ fn render_populates_sorted_proc_as_a_side_effect() {
         proc_row(2, "b", "b", 9.0, 0.0),
     ]);
     assert!(t.sorted_proc.is_empty());
-    let _ = common::render(80, 6, |f| t.render(f, Rect::new(0, 0, 80, 6)));
+    let _ = common::render(80, 6, |f| f.render_widget(&mut t, Rect::new(0, 0, 80, 6)));
     assert_eq!(pids(&t.sorted_proc), vec![2, 1]);
 }
 
@@ -329,23 +344,30 @@ fn render_truncates_the_command_at_the_first_space() {
         5.0,
         1.0,
     )]);
-    let buf = common::render(90, 5, |f| t.render(f, Rect::new(0, 0, 90, 5)));
+    let buf = common::render(90, 5, |f| f.render_widget(&mut t, Rect::new(0, 0, 90, 5)));
     let text = common::buffer_text(&buf);
 
     assert!(text.contains("firefox"));
-    assert!(!text.contains("--new-window"), "arguments should be trimmed:\n{text}");
+    assert!(
+        !text.contains("--new-window"),
+        "arguments should be trimmed:\n{text}"
+    );
 }
 
 #[test]
 fn render_shows_the_filter_bar_only_while_typing() {
     let mut t = table_with(vec![proc_row(1, "bash", "bash", 1.0, 0.0)]);
 
-    let without = common::buffer_text(&common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8))));
+    let without = common::buffer_text(&common::render(60, 8, |f| {
+        f.render_widget(&mut t, Rect::new(0, 0, 60, 8))
+    }));
     assert!(!without.contains("Filter"));
 
     t.search_state = SearchState::Searching;
     t.search_input = "fire".into();
-    let with = common::buffer_text(&common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8))));
+    let with = common::buffer_text(&common::render(60, 8, |f| {
+        f.render_widget(&mut t, Rect::new(0, 0, 60, 8))
+    }));
     assert!(with.contains("Filter"), "filter bar missing:\n{with}");
     assert!(with.contains("/fire"), "query not echoed:\n{with}");
 }
@@ -359,23 +381,30 @@ fn render_uses_the_filtered_rows_once_a_filter_is_applied() {
     t.search_state = SearchState::FilterApplied;
     t.filtered_table = vec![proc_row(111, "keep", "keep", 1.0, 0.0)];
 
-    let text = common::buffer_text(&common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8))));
+    let text = common::buffer_text(&common::render(60, 8, |f| {
+        f.render_widget(&mut t, Rect::new(0, 0, 60, 8))
+    }));
     assert!(text.contains("keep"));
-    assert!(!text.contains("222"), "unfiltered row leaked into the list:\n{text}");
+    assert!(
+        !text.contains("222"),
+        "unfiltered row leaked into the list:\n{text}"
+    );
 }
 
 #[test]
 fn rendering_an_empty_table_still_draws_the_header() {
     let mut t = ProcessTable::new();
-    let text = common::buffer_text(&common::render(60, 5, |f| t.render(f, Rect::new(0, 0, 60, 5))));
+    let text = common::buffer_text(&common::render(60, 5, |f| {
+        f.render_widget(&mut t, Rect::new(0, 0, 60, 5))
+    }));
     assert!(text.contains("PID"));
 }
 
 #[test]
 fn rendering_into_a_tiny_area_does_not_panic() {
     let mut t = table_with(vec![proc_row(1, "bash", "bash", 1.0, 0.0)]);
-    let _ = common::render(4, 2, |f| t.render(f, Rect::new(0, 0, 4, 2)));
-    let _ = common::render(1, 1, |f| t.render(f, Rect::new(0, 0, 1, 1)));
+    let _ = common::render(4, 2, |f| f.render_widget(&mut t, Rect::new(0, 0, 4, 2)));
+    let _ = common::render(1, 1, |f| f.render_widget(&mut t, Rect::new(0, 0, 1, 1)));
 }
 
 // --------------------------------------------------------------- click target
@@ -390,7 +419,7 @@ fn clicking_before_the_first_render_selects_nothing() {
 #[test]
 fn clicking_outside_the_rendered_area_is_ignored() {
     let mut t = table_with(vec![proc_row(42, "a", "a", 1.0, 0.0)]);
-    let _ = common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8)));
+    let _ = common::render(60, 8, |f| f.render_widget(&mut t, Rect::new(0, 0, 60, 8)));
 
     t.handle_click(200, 3);
     assert_eq!(t.selected_pid, 0, "column outside the widget");
@@ -404,10 +433,13 @@ fn clicking_selects_a_process() {
         proc_row(111, "busy", "busy", 90.0, 0.0),
         proc_row(222, "idle", "idle", 1.0, 0.0),
     ]);
-    let _ = common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8)));
+    let _ = common::render(60, 8, |f| f.render_widget(&mut t, Rect::new(0, 0, 60, 8)));
 
     t.handle_click(5, 1);
-    assert_eq!(t.selected_pid, 111, "first sorted row is the busiest process");
+    assert_eq!(
+        t.selected_pid, 111,
+        "first sorted row is the busiest process"
+    );
 }
 
 #[test]
@@ -417,7 +449,7 @@ fn clicking_selects_the_process_on_the_rendered_row() {
         proc_row(222, "b", "b", 50.0, 0.0),
         proc_row(333, "c", "c", 10.0, 0.0),
     ]);
-    let _ = common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8)));
+    let _ = common::render(60, 8, |f| f.render_widget(&mut t, Rect::new(0, 0, 60, 8)));
     assert_eq!(pids(&t.sorted_proc), vec![111, 222, 333]);
 
     t.handle_click(5, 0);
@@ -434,19 +466,22 @@ fn clicking_selects_the_process_on_the_rendered_row() {
 #[test]
 fn clicking_past_the_last_row_keeps_the_previous_selection() {
     let mut t = table_with(vec![proc_row(111, "a", "a", 1.0, 0.0)]);
-    let _ = common::render(60, 8, |f| t.render(f, Rect::new(0, 0, 60, 8)));
+    let _ = common::render(60, 8, |f| f.render_widget(&mut t, Rect::new(0, 0, 60, 8)));
 
     t.handle_click(5, 1);
     assert_eq!(t.selected_pid, 111);
     t.handle_click(5, 7); // below the single data row
-    assert_eq!(t.selected_pid, 111, "an out-of-range index must not clear the selection");
+    assert_eq!(
+        t.selected_pid, 111,
+        "an out-of-range index must not clear the selection"
+    );
 }
 
 #[test]
 fn clicking_respects_a_non_zero_widget_origin() {
     let mut t = table_with(vec![proc_row(111, "a", "a", 1.0, 0.0)]);
     let area = Rect::new(10, 4, 40, 6);
-    let _ = common::render(60, 12, |f| t.render(f, area));
+    let _ = common::render(60, 12, |f| f.render_widget(&mut t, area));
 
     t.handle_click(5, 5);
     assert_eq!(t.selected_pid, 0, "column left of the widget");
@@ -463,7 +498,7 @@ fn clicking_while_typing_ignores_the_filter_bar_and_header() {
     t.search_state = SearchState::Searching;
     t.apply_filter();
     let area = Rect::new(10, 2, 40, 8);
-    let _ = common::render(60, 12, |f| t.render(f, area));
+    let _ = common::render(60, 12, |f| f.render_widget(&mut t, area));
 
     for row in 2..6 {
         t.handle_click(15, row);
@@ -475,11 +510,13 @@ fn clicking_while_typing_ignores_the_filter_bar_and_header() {
 
 #[test]
 fn clicking_a_scrolled_list_selects_the_visible_process() {
-    let mut t = table_with((1..=10)
-        .map(|pid| proc_row(pid, "prog", "prog", 1.0, 0.0))
-        .collect());
+    let mut t = table_with(
+        (1..=10)
+            .map(|pid| proc_row(pid, "prog", "prog", 1.0, 0.0))
+            .collect(),
+    );
     t.selected_pid = 10;
-    let buffer = common::render(60, 3, |f| t.render(f, Rect::new(0, 0, 60, 3)));
+    let buffer = common::render(60, 3, |f| f.render_widget(&mut t, Rect::new(0, 0, 60, 3)));
     let text = common::buffer_text(&buffer);
     for (row, line) in text.lines().enumerate() {
         let visible_pid: u32 = line.split_whitespace().next().unwrap().parse().unwrap();
@@ -502,8 +539,11 @@ fn hidden_info_popup_draws_nothing() {
     p.total_proc.proc_table = vec![proc_row(42, "prog", "prog", 1.0, 1.0)];
     p.selected_pid = 42;
 
-    let buf = common::render(60, 20, |f| p.render(f, Rect::new(0, 0, 60, 20)));
-    assert!(common::buffer_is_blank(&buf), "hidden popup rendered content");
+    let buf = common::render(60, 20, |f| f.render_widget(&p, Rect::new(0, 0, 60, 20)));
+    assert!(
+        common::buffer_is_blank(&buf),
+        "hidden popup rendered content"
+    );
 }
 
 #[test]
@@ -513,7 +553,9 @@ fn visible_info_popup_shows_the_selected_process() {
     p.selected_pid = 42;
     p.total_proc.proc_table = vec![proc_row(42, "myprog", "myprog --x", 12.5, 3.5)];
 
-    let text = common::buffer_text(&common::render(80, 24, |f| p.render(f, Rect::new(0, 0, 80, 24))));
+    let text = common::buffer_text(&common::render(80, 24, |f| {
+        f.render_widget(&p, Rect::new(0, 0, 80, 24))
+    }));
     assert!(text.contains("Process Info"), "missing title:\n{text}");
     assert!(text.contains("42"), "missing pid:\n{text}");
     assert!(text.contains("myprog"), "missing program:\n{text}");
@@ -528,7 +570,7 @@ fn info_popup_shows_io_rows_only_when_io_was_collected() {
     with_io.total_proc.proc_table =
         vec![proc_row_with_io(42, "prog", "prog", 1.0, 1.0, 4096, 8192)];
     let text = common::buffer_text(&common::render(80, 24, |f| {
-        with_io.render(f, Rect::new(0, 0, 80, 24))
+        f.render_widget(&with_io, Rect::new(0, 0, 80, 24))
     }));
     assert!(text.contains("Read IO"), "io rows missing:\n{text}");
     assert!(text.contains("4096"));
@@ -539,9 +581,12 @@ fn info_popup_shows_io_rows_only_when_io_was_collected() {
     without_io.selected_pid = 42;
     without_io.total_proc.proc_table = vec![proc_row(42, "prog", "prog", 1.0, 1.0)];
     let text = common::buffer_text(&common::render(80, 24, |f| {
-        without_io.render(f, Rect::new(0, 0, 80, 24))
+        f.render_widget(&without_io, Rect::new(0, 0, 80, 24))
     }));
-    assert!(!text.contains("Read IO"), "io rows should be omitted:\n{text}");
+    assert!(
+        !text.contains("Read IO"),
+        "io rows should be omitted:\n{text}"
+    );
 }
 
 #[test]
@@ -551,7 +596,12 @@ fn info_popup_for_an_unknown_pid_still_draws_its_frame() {
     p.selected_pid = 999;
     p.total_proc.proc_table = vec![proc_row(42, "prog", "prog", 1.0, 1.0)];
 
-    let text = common::buffer_text(&common::render(80, 24, |f| p.render(f, Rect::new(0, 0, 80, 24))));
+    let text = common::buffer_text(&common::render(80, 24, |f| {
+        f.render_widget(&p, Rect::new(0, 0, 80, 24))
+    }));
     assert!(text.contains("Process Info"));
-    assert!(!text.contains("Program:"), "no detail rows for a missing pid:\n{text}");
+    assert!(
+        !text.contains("Program:"),
+        "no detail rows for a missing pid:\n{text}"
+    );
 }

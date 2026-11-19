@@ -24,7 +24,7 @@ fn left_click(column: u16, row: u16) -> MouseEvent {
 /// Render the button once so `duration_click` has a hit box to test against.
 fn rendered(duration: Duration, area: Rect) -> TickButton {
     let mut b = TickButton::new(duration);
-    let _ = common::render(40, 3, |f| b.render(f, area));
+    let _ = common::render(40, 3, |f| f.render_widget(&mut b, area));
     b
 }
 
@@ -179,8 +179,16 @@ fn the_label_padding_does_not_activate_the_increment_button() {
 #[test]
 fn clicks_outside_the_rendered_row_are_ignored() {
     let b = rendered(ms(2000), Rect::new(0, 0, 14, 1));
-    assert_eq!(b.duration_click(left_click(1, 1)), TickCounter::None, "row below");
-    assert_eq!(b.duration_click(left_click(30, 0)), TickCounter::None, "column right");
+    assert_eq!(
+        b.duration_click(left_click(1, 1)),
+        TickCounter::None,
+        "row below"
+    );
+    assert_eq!(
+        b.duration_click(left_click(30, 0)),
+        TickCounter::None,
+        "column right"
+    );
 }
 
 #[test]
@@ -188,8 +196,16 @@ fn a_non_zero_origin_shifts_both_zones() {
     let b = rendered(ms(2000), Rect::new(10, 2, 14, 1));
     assert_eq!(b.duration_click(left_click(10, 2)), TickCounter::Decrement);
     assert_eq!(b.duration_click(left_click(21, 2)), TickCounter::Increment);
-    assert_eq!(b.duration_click(left_click(9, 2)), TickCounter::None, "left of the widget");
-    assert_eq!(b.duration_click(left_click(15, 2)), TickCounter::None, "the label");
+    assert_eq!(
+        b.duration_click(left_click(9, 2)),
+        TickCounter::None,
+        "left of the widget"
+    );
+    assert_eq!(
+        b.duration_click(left_click(15, 2)),
+        TickCounter::None,
+        "the label"
+    );
 }
 
 #[test]
@@ -214,7 +230,7 @@ fn only_a_left_button_press_counts() {
 #[test]
 fn render_shows_the_current_rate_in_milliseconds() {
     let mut b = TickButton::new(ms(2500));
-    let buf = common::render(40, 1, |f| b.render(f, Rect::new(0, 0, 20, 1)));
+    let buf = common::render(40, 1, |f| f.render_widget(&mut b, Rect::new(0, 0, 20, 1)));
     let text = common::buffer_text(&buf);
 
     assert!(text.contains("2500ms"), "got {text:?}");
@@ -225,6 +241,8 @@ fn render_shows_the_current_rate_in_milliseconds() {
 fn render_reflects_a_changed_rate() {
     let mut b = TickButton::new(ms(2000));
     b.increment();
-    let text = common::buffer_text(&common::render(40, 1, |f| b.render(f, Rect::new(0, 0, 20, 1))));
+    let text = common::buffer_text(&common::render(40, 1, |f| {
+        f.render_widget(&mut b, Rect::new(0, 0, 20, 1))
+    }));
     assert!(text.contains("2100ms"), "got {text:?}");
 }

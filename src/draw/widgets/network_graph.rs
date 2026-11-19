@@ -1,13 +1,13 @@
+use crate::data::network::NetworkHarvester;
+use crate::tools::units::{format_axis_label, format_rate, format_total, KILOBYTE};
 use ratatui::{
-    Frame,
+    buffer::Buffer,
     layout::Rect,
-    widgets::{Block, Borders, Chart, Dataset, Axis, GraphType},
-    style::{Color, Style, Modifier},
+    style::{Color, Modifier, Style},
     symbols,
     text::Span,
+    widgets::{Axis, Block, Borders, Chart, Dataset, GraphType, Widget},
 };
-use crate::data::network::NetworkHarvester;
-use crate::tools::units::{KILOBYTE, format_rate, format_total, format_axis_label};
 
 pub struct NetworkGraph {
     rx_history: Vec<(f64, f64)>,
@@ -16,18 +16,22 @@ pub struct NetworkGraph {
     total_tx: u64,
     max_points: usize,
     harvester: NetworkHarvester,
+    ip_address: String,
     tick: f64,
 }
 
 impl NetworkGraph {
     pub fn new(max_points: usize) -> Self {
+        let mut harvester = NetworkHarvester::default();
+        let ip_address = harvester.get_ip_adress();
         Self {
             rx_history: Vec::with_capacity(max_points),
             tx_history: Vec::with_capacity(max_points),
             total_rx: 0,
             total_tx: 0,
             max_points,
-            harvester: NetworkHarvester::default(),
+            harvester,
+            ip_address,
             tick: 0.0,
         }
     }
@@ -40,6 +44,7 @@ impl NetworkGraph {
         self.tx_history.push((self.tick, curr[1] as f64));
         self.total_rx = total[0];
         self.total_tx = total[1];
+        self.ip_address = self.harvester.get_ip_adress();
         self.tick += 1.0;
 
         if self.rx_history.len() > self.max_points {
@@ -49,13 +54,23 @@ impl NetworkGraph {
             self.tx_history.remove(0);
         }
     }
+}
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
+impl Widget for &NetworkGraph {
+    fn render(self, area: Rect, buf: &mut Buffer) {
         let current_rx = self.rx_history.last().map(|(_, v)| *v).unwrap_or(0.0);
         let current_tx = self.tx_history.last().map(|(_, v)| *v).unwrap_or(0.0);
 
-        let max_rx = self.rx_history.iter().map(|(_, v)| *v).fold(0.0_f64, f64::max);
-        let max_tx = self.tx_history.iter().map(|(_, v)| *v).fold(0.0_f64, f64::max);
+        let max_rx = self
+            .rx_history
+            .iter()
+            .map(|(_, v)| *v)
+            .fold(0.0_f64, f64::max);
+        let max_tx = self
+            .tx_history
+            .iter()
+            .map(|(_, v)| *v)
+            .fold(0.0_f64, f64::max);
         let max_val = max_rx.max(max_tx).max(KILOBYTE);
 
         let x_min = self.rx_history.first().map(|(t, _)| *t).unwrap_or(0.0);
@@ -97,14 +112,16 @@ impl NetworkGraph {
             Span::raw("0s"),
         ];
 
-        let ip_address = self.harvester.get_ip_adress();
-
         let chart = Chart::new(datasets)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title(ip_address)
-                    .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                    .title(self.ip_address.as_str())
+                    .title_style(
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    ),
             )
             .x_axis(
                 Axis::default()
@@ -119,6 +136,6 @@ impl NetworkGraph {
                     .bounds([0.0, max_val]),
             );
 
-        frame.render_widget(chart, area);
+        chart.render(area, buf);
     }
 }

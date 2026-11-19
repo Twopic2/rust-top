@@ -1,4 +1,9 @@
-use ratatui::{buffer::Buffer, layout::Rect, text::Line, widgets::{Block, Paragraph, Widget}};
+use ratatui::{
+    buffer::Buffer,
+    layout::Rect,
+    text::Line,
+    widgets::{Block, Paragraph, Widget},
+};
 
 use crate::data::voltage::Voltage;
 
@@ -7,10 +12,16 @@ pub struct VoltageUsage {
 }
 
 impl VoltageUsage {
-    pub fn new(voltages: Voltage) -> Self {    
-        Self {
-            voltages
+    pub fn new(voltages: Voltage) -> Self {
+        Self { voltages }
+    }
+
+    pub fn is_empty_voltage_endpoints(&self) -> bool {
+        if self.voltages.voltage_read_points.is_empty() {
+            return true;
         }
+
+        return false;
     }
 }
 
@@ -23,6 +34,8 @@ impl Widget for &VoltageUsage {
             lines.push(voltage_point);
         }
 
-        Paragraph::new(lines).block(Block::bordered().title("Voltage")).render(area, buf);
+        Paragraph::new(lines)
+            .block(Block::bordered().title("Voltage"))
+            .render(area, buf);
     }
 }
