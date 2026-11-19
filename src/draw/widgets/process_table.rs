@@ -1,10 +1,16 @@
 use crate::processes::processdata::CollectProcessData;
-use std::collections::BTreeMap;
-use std::cmp::Ordering;
-use sysinfo::System;
 use ratatui::{
-    Frame, layout::{Alignment, Constraint, Layout, Rect}, style::{Color, Modifier, Style}, text::Line, widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph}
+    buffer::Buffer,
+    layout::{Alignment, Constraint, Layout, Rect},
+    style::{Color, Modifier, Style},
+    text::Line,
+    widgets::{
+        Block, Borders, Clear, List, ListItem, ListState, Paragraph, StatefulWidget, Widget,
+    },
 };
+use std::cmp::Ordering;
+use std::collections::BTreeMap;
+use sysinfo::System;
 
 #[derive(Clone, Copy)]
 pub enum ProcessColumn {
@@ -78,7 +84,10 @@ impl ProcessTable {
     }
 
     pub fn is_searching(&self) -> bool {
-        matches!(self.search_state, SearchState::Searching | SearchState::FilterApplied)
+        matches!(
+            self.search_state,
+            SearchState::Searching | SearchState::FilterApplied
+        )
     }
 
     pub fn is_filter_input_active(&self) -> bool {
@@ -94,17 +103,21 @@ impl ProcessTable {
 
     pub fn apply_filter(&mut self) {
         let query = self.search_input.to_lowercase();
-        self.filtered_table = self.proc_table.iter()
+        self.filtered_table = self
+            .proc_table
+            .iter()
             .filter(|p| {
                 p.program.to_lowercase().starts_with(&query)
                     || p.command.to_lowercase().starts_with(&query)
             })
             .cloned()
             .collect();
-
     }
 
-    pub fn get_sorted_processes(&self, processes: Vec<CollectProcessData>) -> Vec<CollectProcessData> {
+    pub fn get_sorted_processes(
+        &self,
+        processes: Vec<CollectProcessData>,
+    ) -> Vec<CollectProcessData> {
         let mut indexed_processes: BTreeMap<ProcessKey, CollectProcessData> = BTreeMap::new();
 
         for process in processes {
@@ -115,38 +128,40 @@ impl ProcessTable {
         indexed_processes.into_values().collect()
     }
 
-    fn create_filter_bar(&self, frame: &mut Frame, area: Rect) {
+    fn create_filter_bar(&self, area: Rect, buf: &mut Buffer) {
         let search_text = format!("/{}", self.search_input);
         let search_box = Paragraph::new(Line::from(search_text))
             .block(
-                Block::new()
-                    .borders(Borders::ALL)
-                    .title("Filter")
-                    .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-            )
-            .style(Style::default().fg(Color::White).bold());
-        frame.render_widget(search_box, area);
+                Block::new().borders(Borders::ALL).title("Filter")
+                .title_style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+            ).style(Style::default().fg(Color::White).bold());
+        search_box.render(area, buf);
     }
 
     pub fn handle_click(&mut self, col: u16, row: u16) {
         let area = self.render_area;
-        if col < area.x || col >= area.x + area.width { return; }
-        if row < area.y || row >= area.y + area.height { return; }
+        if col < area.x || col >= area.x + area.width {
+            return;
+        }
+        if row < area.y || row >= area.y + area.height {
+            return;
+        }
 
         let list_index = self.list_offset + usize::from(row - area.y);
-        let Some(offset) = list_index.checked_sub(1) else { return; };
+        let Some(offset) = list_index.checked_sub(1) else {
+            return;
+        };
         if let Some(p) = self.sorted_proc.get(offset) {
             self.selected_pid = p.pid;
         }
     }
+}
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
+impl Widget for &mut ProcessTable {
+    fn render(self, area: Rect, buf: &mut Buffer) {
         let list_area = if self.is_filter_input_active() {
-            let split = Layout::vertical([
-                Constraint::Length(3),
-                Constraint::Min(1),
-            ]).split(area);
-            self.create_filter_bar(frame, split[0]);
+            let split = Layout::vertical([Constraint::Length(3), Constraint::Min(1)]).split(area);
+            self.create_filter_bar(split[0], buf);
             split[1]
         } else {
             area
@@ -170,22 +185,25 @@ impl ProcessTable {
             ProcessColumn::display_header(ProcessColumn::Command)
         );
 
-        let mut process_items: Vec<ListItem> = vec![
-            ListItem::new(header).style(Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
-        ];
+        let mut process_items: Vec<ListItem> = vec![ListItem::new(header).style(
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )];
 
-        let data_items: Vec<ListItem> = self.sorted_proc
+        let data_items: Vec<ListItem> = self
+            .sorted_proc
             .iter()
             .map(|p| {
-                let trimmed_command = p.command.split_once(' ').map(|(first, _)| first).unwrap_or(&p.command);
+                let trimmed_command = p
+                    .command
+                    .split_once(' ')
+                    .map(|(first, _)| first)
+                    .unwrap_or(&p.command);
 
                 let line = format!(
                     "{:>7} {:>6.1}% {:>6.1}% {:>15} {}",
-                    p.pid,
-                    p.cpu_usage_percent,
-                    p.mem_usage_percent,
-                    p.program,
-                    trimmed_command
+                    p.pid, p.cpu_usage_percent, p.mem_usage_percent, p.program, trimmed_command
                 );
                 ListItem::new(line)
             })
@@ -195,14 +213,19 @@ impl ProcessTable {
 
         let process_list = List::new(process_items)
             .style(Style::default().fg(Color::White))
-            .highlight_style(Style::default().bg(Color::DarkGray).add_modifier(Modifier::BOLD));
+            .highlight_style(
+                Style::default()
+                    .bg(Color::DarkGray)
+                    .add_modifier(Modifier::BOLD),
+            );
 
-        let list_selected = self.sorted_proc
+        let list_selected = self
+            .sorted_proc
             .iter()
             .position(|p| p.pid == self.selected_pid)
             .map(|i| i + 1);
         let mut list_state = ListState::default().with_selected(list_selected);
-        frame.render_stateful_widget(process_list, list_area, &mut list_state);
+        StatefulWidget::render(process_list, list_area, buf, &mut list_state);
         self.list_offset = list_state.offset();
     }
 }
@@ -248,7 +271,8 @@ impl PartialOrd for ProcessKey {
 
 impl Ord for ProcessKey {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.primary.cmp(&other.primary)
+        self.primary
+            .cmp(&other.primary)
             .then_with(|| self.secondary.cmp(&other.secondary))
     }
 }
@@ -269,7 +293,11 @@ impl OrderedFloat {
 impl PartialEq for OrderedFloat {
     fn eq(&self, other: &Self) -> bool {
         let a = if self.value.is_nan() { 0.0 } else { self.value };
-        let b = if other.value.is_nan() { 0.0 } else { other.value };
+        let b = if other.value.is_nan() {
+            0.0
+        } else {
+            other.value
+        };
         a == b
     }
 }
@@ -285,7 +313,11 @@ impl PartialOrd for OrderedFloat {
 impl Ord for OrderedFloat {
     fn cmp(&self, other: &Self) -> Ordering {
         let a = if self.value.is_nan() { 0.0 } else { self.value };
-        let b = if other.value.is_nan() { 0.0 } else { other.value };
+        let b = if other.value.is_nan() {
+            0.0
+        } else {
+            other.value
+        };
 
         let ordering = a.partial_cmp(&b).unwrap_or(Ordering::Equal);
 
@@ -297,7 +329,7 @@ impl Ord for OrderedFloat {
     }
 }
 
-pub struct ProcInfoPopup{
+pub struct ProcInfoPopup {
     pub visable: bool,
     pub selected_pid: u32,
     pub total_proc: ProcessTable,
@@ -318,60 +350,55 @@ impl ProcInfoPopup {
     }
 
     fn find_selected(&self) -> Option<&CollectProcessData> {
-        self.total_proc.proc_table.iter().find(|p| p.pid == self.selected_pid)
+        self.total_proc
+            .proc_table
+            .iter()
+            .find(|p| p.pid == self.selected_pid)
     }
+}
 
-    pub fn render(&mut self, frame: &mut Frame, area: Rect) {
-        if !self.visable { return; }
+impl Widget for &ProcInfoPopup {
+    fn render(self, area: Rect, buf: &mut Buffer) {
+        if !self.visable {
+            return;
+        }
 
         let blur_line = "░".repeat(area.width as usize);
         let blur_lines: Vec<Line> = (0..area.height)
             .map(|_| Line::from(blur_line.clone()))
             .collect();
-        frame.render_widget(
-            Paragraph::new(blur_lines)
-                .style(Style::default().fg(Color::DarkGray).bg(Color::Black)),
-            area,
-        );
+        Paragraph::new(blur_lines)
+            .style(Style::default().fg(Color::DarkGray).bg(Color::Black))
+            .render(area, buf);
 
-        let info_block = Block::new().title("Process Info")
-        .title_style(Style::new().red().bold())
-        .title_alignment(Alignment::Center);
+        let info_block = Block::new()
+            .title("Process Info")
+            .title_style(Style::new().red().bold())
+            .title_alignment(Alignment::Center);
 
         let info_area = area.centered(Constraint::Percentage(60), Constraint::Percentage(40));
 
         let inner = info_block.inner(info_area);
-        frame.render_widget(Clear, info_area);
-        frame.render_widget(info_block, info_area);
+        Clear.render(info_area, buf);
+        info_block.render(info_area, buf);
 
         if let Some(p) = self.find_selected() {
-            let mut lines = Vec::new();
+            let mut lines = vec![
+                Line::from(format!("PID:     {}", p.pid)),
+                Line::from(format!("Program: {}", p.program)),
+                Line::from(format!("Command: {}", p.command)),
+                Line::from(format!("CPU:     {:.1}%", p.cpu_usage_percent)),
+                Line::from(format!("MEM:     {:.1}%", p.mem_usage_percent)),
+                Line::from(format!("UID:    {:?}", p.uid)),
+                Line::from(format!("User:    {}", p.user)),
+            ];
 
             if let Some(io) = &p.disk_io {
-                lines = vec![
-                    Line::from(format!("PID:     {}", p.pid)),
-                    Line::from(format!("Program: {}", p.program)),
-                    Line::from(format!("Command: {}", p.command)),
-                    Line::from(format!("CPU:     {:.1}%", p.cpu_usage_percent)),
-                    Line::from(format!("MEM:     {:.1}%", p.mem_usage_percent)),
-                    Line::from(format!("UID:    {:?}", p.uid)),
-                    Line::from(format!("User:    {}", p.user)),
-                    Line::from(format!("Read IO:    {}", io.read_bytes)),   
-                    Line::from(format!("Write IO:    {}", io.write_bytes)),
-                ];
-            } else {
-                lines = vec![
-                    Line::from(format!("PID:     {}", p.pid)),
-                    Line::from(format!("Program: {}", p.program)),
-                    Line::from(format!("Command: {}", p.command)),
-                    Line::from(format!("CPU:     {:.1}%", p.cpu_usage_percent)),
-                    Line::from(format!("MEM:     {:.1}%", p.mem_usage_percent)),
-                    Line::from(format!("UID:    {:?}", p.uid)),
-                    Line::from(format!("User:    {}", p.user)),
-                ];
+                lines.push(Line::from(format!("Read IO:    {}", io.read_bytes)));
+                lines.push(Line::from(format!("Write IO:    {}", io.write_bytes)));
             }
-            
-            frame.render_widget(Paragraph::new(lines), inner);
+
+            Paragraph::new(lines).render(inner, buf);
         }
     }
 }

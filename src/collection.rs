@@ -1,16 +1,11 @@
 use sysinfo::System;
-use ratatui::text::Line;
-
-#[cfg(target_os = "macos")]
-use crate::data::darwin::cache::CacheMac;
 
 use crate::data::cpu::CpuInfo;
-use crate::data::mem::MemInfo;
 use crate::data::disk::DiskData;
 use crate::data::power::CpuPackageCap;
 use crate::data::voltage::Voltage;
-use crate::draw::widgets::cpu_graph::{MultiCoreGraph, ColorScheme};
-use crate::draw::widgets::cpu_bar::{TotalCoreBar, BarColorScheme};
+use crate::draw::widgets::cpu_bar::{BarColorScheme, TotalCoreBar};
+use crate::draw::widgets::cpu_graph::{ColorScheme, MultiCoreGraph};
 use crate::draw::widgets::cpu_power::CpuPowerUsage;
 use crate::draw::widgets::network_graph::NetworkGraph;
 use crate::draw::widgets::process_table::ProcessTable;
@@ -18,9 +13,6 @@ use crate::draw::widgets::voltage_bar::VoltageUsage;
 
 pub struct TopCollection {
     pub sys: System,
-    pub cpu_model_lines: Line<'static>,
-    pub cpu_cache_lines: Vec<Line<'static>>,
-    pub mem_lines: Vec<Line<'static>>,
     pub core_graph: MultiCoreGraph,
     pub total_cpu_bar: TotalCoreBar,
     pub cpu_power: CpuPowerUsage,
@@ -34,26 +26,6 @@ pub struct TopCollection {
 impl TopCollection {
     pub fn new() -> Self {
         let mut sys = System::new_all();
-
-        let cpu_model_lines = if let Some(cpu_model) = CpuInfo::display_cpu_model(&mut sys) {
-            Line::from(cpu_model)
-        } else {
-            Line::from("Cpu Model isn't here")
-        };
-
-        #[cfg(target_os = "macos")]
-        let cpu_cache_lines: Vec<Line<'static>> = CacheMac::cache_lines();
-
-        #[cfg(not(target_os = "macos"))]
-        let cpu_lines = CpuInfo::display_cpu_cache();
-        #[cfg(not(target_os = "macos"))]
-        let cpu_cache_lines = cpu_lines.into_iter().map(|(key, value)| {
-            Line::from(format!("{}: {} kb", key, value))
-        }).collect();
-
-        let mem_lines = MemInfo::display_memory(&mut sys).into_iter().map(|value| {
-            Line::from(value)
-        }).collect();
 
         let num_cores = CpuInfo::num_cores(&mut sys);
         let core_graph = MultiCoreGraph::new(num_cores, ColorScheme::Cyan);
@@ -71,9 +43,6 @@ impl TopCollection {
 
         Self {
             sys,
-            cpu_model_lines,
-            cpu_cache_lines,
-            mem_lines,
             core_graph,
             total_cpu_bar,
             cpu_power,
@@ -90,16 +59,10 @@ impl TopCollection {
     }
 
     pub fn update_data(&mut self) {
-        self.mem_lines = MemInfo::display_memory(&mut self.sys)
-            .into_iter()
-            .map(Line::from)
-            .collect();
-
         let core_usages = CpuInfo::get_core_usages(&mut self.sys);
 
-        for (i, usage) in core_usages.iter().enumerate() {
-            self.core_graph.cores.insert(i, *usage);
-        }
+        let cpu_frequency_mhz = CpuInfo::display_cpu_frequency(&mut self.sys).unwrap_or(0);
+        self.core_graph.update(&core_usages, cpu_frequency_mhz);
 
         self.total_cpu_bar.update(&core_usages);
 

@@ -10,7 +10,9 @@ static SENSOR_LOCK: Mutex<()> = Mutex::new(());
 fn collection() -> (MutexGuard<'static, ()>, TopCollection) {
     // lm-sensors permits only one active handle per process. Tests bind the
     // guard before the collection so the collection drops before unlocking.
-    let guard = SENSOR_LOCK.lock().unwrap_or_else(|error| error.into_inner());
+    let guard = SENSOR_LOCK
+        .lock()
+        .unwrap_or_else(|error| error.into_inner());
     (guard, TopCollection::new())
 }
 
@@ -26,11 +28,8 @@ fn lengths_match(c: &TopCollection) -> bool {
 }
 
 #[test]
-fn new_collection_is_fully_populated() {
+fn new_collection_has_one_graph_entry_per_core() {
     let (_guard, mut c) = collection();
-
-    assert!(!c.cpu_model_lines.spans.is_empty(), "cpu model line is empty");
-    assert_eq!(c.mem_lines.len(), 2, "memory panel is two lines");
 
     let cores = CpuInfo::num_cores(&mut c.sys);
     assert!(cores > 0);
@@ -49,7 +48,10 @@ fn new_collection_starts_with_zeroed_core_usage() {
 #[test]
 fn new_collection_has_no_disk_or_process_data_yet() {
     let (_guard, c) = collection();
-    assert!(c.disk_data.disk_name.is_empty(), "disks are collected in update_data");
+    assert!(
+        c.disk_data.disk_name.is_empty(),
+        "disks are collected in update_data"
+    );
     assert!(c.process_tree.proc_table.is_empty());
     assert_eq!(c.process_tree.selected_pid, 0);
 }
@@ -103,7 +105,6 @@ fn repeated_cycles_do_not_grow_any_collection() {
         "disk rows must be replaced, not appended"
     );
     assert!(lengths_match(&c));
-    assert_eq!(c.mem_lines.len(), 2);
 }
 
 #[test]
@@ -115,7 +116,11 @@ fn every_process_row_stays_within_range_across_cycles() {
     }
 
     for p in &c.process_tree.proc_table {
-        assert!(p.cpu_usage_percent.is_finite(), "pid {} cpu not finite", p.pid);
+        assert!(
+            p.cpu_usage_percent.is_finite(),
+            "pid {} cpu not finite",
+            p.pid
+        );
         assert!(
             (0.0..=100.5).contains(&p.mem_usage_percent),
             "pid {} reported {}% memory",

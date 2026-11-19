@@ -1,19 +1,18 @@
 use ratatui::{
+    buffer::Buffer,
     layout::Rect,
-    Frame,
-    widgets::{Block, Borders, Paragraph},
-    style::{Color, Style, Modifier},
+    style::{Color, Modifier, Style},
     text::{Line, Span},
+    widgets::{Block, Borders, Paragraph, Widget},
 };
 
 use crate::data::temp::TempData;
 
-
 #[derive(Default)]
 pub struct TempWidget {
-    cpu_name:   Option<String>,
-    disk_name:  Option<String>,
-    nic_name:   Option<String>,
+    cpu_name: Option<String>,
+    disk_name: Option<String>,
+    nic_name: Option<String>,
     ddr_name: Option<String>,
     line_count: u8,
 }
@@ -27,14 +26,19 @@ impl TempWidget {
             let mut disk_line_stop = false;
             let mut ddr_line_stop = false;
             // TODO add nic support
-            let mut nic_line_stop = false;
+            let nic_line_stop = false;
 
             for (label, temp_opt) in all_temps {
-                if temp_opt.is_none() { continue; }
+                if temp_opt.is_none() {
+                    continue;
+                }
 
-                if !cpu_line_stop && (label.contains("tdie") || label.contains("Tdie")
-                    || label.contains("coretemp") || label.contains("Package id")
-                    || label.contains("k10temp"))
+                if !cpu_line_stop
+                    && (label.contains("tdie")
+                        || label.contains("Tdie")
+                        || label.contains("coretemp")
+                        || label.contains("Package id")
+                        || label.contains("k10temp"))
                 {
                     self.cpu_name = Some(label);
                     cpu_line_stop = true;
@@ -43,8 +47,8 @@ impl TempWidget {
                     self.disk_name = Some(label);
                     disk_line_stop = true;
                     self.line_count += 1;
-                } else if !nic_line_stop && label.contains("iwlwifi") 
-                && label.contains("MT") // MediaTek
+                } else if !nic_line_stop && label.contains("iwlwifi") && label.contains("MT")
+                // MediaTek
                 {
                     self.nic_name = Some(label);
                     self.line_count += 1;
@@ -62,17 +66,24 @@ impl TempWidget {
     }
 
     pub fn get_length(&self) -> u16 {
-        let max = [&self.cpu_name, &self.disk_name, &self.nic_name, &self.ddr_name]
-            .iter()
-            .filter_map(|n| n.as_ref())
-            .map(|n| n.len() + 10)
-            .max()
-            .unwrap_or(16);
+        let max = [
+            &self.cpu_name,
+            &self.disk_name,
+            &self.nic_name,
+            &self.ddr_name,
+        ]
+        .iter()
+        .filter_map(|n| n.as_ref())
+        .map(|n| n.len() + 10)
+        .max()
+        .unwrap_or(16);
 
         (max as u16 + 4).max(20)
     }
+}
 
-    pub fn render(&self, frame: &mut Frame, area: Rect) {
+impl Widget for &TempWidget {
+    fn render(self, area: Rect, buf: &mut Buffer) {
         if let Some(all_temps) = TempData::all_temps() {
             let mut lines: Vec<Line> = Vec::new();
 
@@ -87,7 +98,9 @@ impl TempWidget {
                         lines.push(Line::from(vec![
                             Span::styled(
                                 format!("{}: ", label),
-                                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                                Style::default()
+                                    .fg(Color::Cyan)
+                                    .add_modifier(Modifier::BOLD),
                             ),
                             Span::styled(
                                 format!("{:.1}°C", temp),
@@ -101,9 +114,13 @@ impl TempWidget {
             let block = Block::default()
                 .borders(Borders::ALL)
                 .title("Temperatures")
-                .title_style(Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD));
+                .title_style(
+                    Style::default()
+                        .fg(Color::Magenta)
+                        .add_modifier(Modifier::BOLD),
+                );
 
-            frame.render_widget(Paragraph::new(lines).block(block), area);
+            Paragraph::new(lines).block(block).render(area, buf);
         }
     }
 }

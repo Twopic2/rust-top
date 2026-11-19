@@ -6,7 +6,7 @@
 mod common;
 
 use crossterm::event::{KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
-use ratatui::layout::Rect;
+use ratatui::{layout::Rect, style::Color};
 use rust_top::draw::widgets::process_table::{ProcInfoPopup, ProcessTable};
 use rust_top::draw::widgets::process_taskbar::{ProcessCommands, ProcessTaskBar};
 use sysinfo::System;
@@ -24,7 +24,8 @@ fn left_click(column: u16, row: u16) -> MouseEvent {
 /// "Select " (7 cols), "Kill " (5), "Info " (5).
 fn rendered(area: Rect, selected_pid: u32) -> ProcessTaskBar {
     let mut bar = ProcessTaskBar::new();
-    let _ = common::render(40, 3, |f| bar.render(f, area, selected_pid));
+    bar.set_selected_pid(selected_pid);
+    let _ = common::render(40, 3, |f| f.render_widget(&mut bar, area));
     bar
 }
 
@@ -48,13 +49,25 @@ fn each_button_owns_its_column_range() {
     let mut bar = rendered(Rect::new(0, 0, 20, 1), 0);
 
     for col in 0..7 {
-        assert_eq!(bar.handle_click(left_click(col, 0)), Some(ProcessCommands::Select), "col {col}");
+        assert_eq!(
+            bar.handle_click(left_click(col, 0)),
+            Some(ProcessCommands::Select),
+            "col {col}"
+        );
     }
     for col in 7..12 {
-        assert_eq!(bar.handle_click(left_click(col, 0)), Some(ProcessCommands::Kill), "col {col}");
+        assert_eq!(
+            bar.handle_click(left_click(col, 0)),
+            Some(ProcessCommands::Kill),
+            "col {col}"
+        );
     }
     for col in 12..17 {
-        assert_eq!(bar.handle_click(left_click(col, 0)), Some(ProcessCommands::Info), "col {col}");
+        assert_eq!(
+            bar.handle_click(left_click(col, 0)),
+            Some(ProcessCommands::Info),
+            "col {col}"
+        );
     }
 }
 
@@ -98,9 +111,18 @@ fn clicks_outside_the_rendered_area_are_ignored() {
 #[test]
 fn a_non_zero_origin_shifts_every_button() {
     let mut bar = rendered(Rect::new(10, 3, 20, 1), 0);
-    assert_eq!(bar.handle_click(left_click(10, 3)), Some(ProcessCommands::Select));
-    assert_eq!(bar.handle_click(left_click(17, 3)), Some(ProcessCommands::Kill));
-    assert_eq!(bar.handle_click(left_click(22, 3)), Some(ProcessCommands::Info));
+    assert_eq!(
+        bar.handle_click(left_click(10, 3)),
+        Some(ProcessCommands::Select)
+    );
+    assert_eq!(
+        bar.handle_click(left_click(17, 3)),
+        Some(ProcessCommands::Kill)
+    );
+    assert_eq!(
+        bar.handle_click(left_click(22, 3)),
+        Some(ProcessCommands::Info)
+    );
     assert_eq!(bar.handle_click(left_click(9, 3)), None, "left of the bar");
 }
 
@@ -127,7 +149,7 @@ fn only_a_left_button_press_counts() {
 fn render_draws_every_button_label() {
     let mut bar = ProcessTaskBar::new();
     let text = common::buffer_text(&common::render(40, 1, |f| {
-        bar.render(f, Rect::new(0, 0, 30, 1), 0)
+        f.render_widget(&mut bar, Rect::new(0, 0, 30, 1))
     }));
 
     for label in ["Select", "Kill", "Info"] {
@@ -140,18 +162,51 @@ fn labels_are_present_whether_or_not_a_process_is_selected() {
     // selected_pid only changes styling, never which buttons exist.
     let mut bar = ProcessTaskBar::new();
     let none = common::buffer_text(&common::render(40, 1, |f| {
-        bar.render(f, Rect::new(0, 0, 30, 1), 0)
+        f.render_widget(&mut bar, Rect::new(0, 0, 30, 1))
     }));
     let some = common::buffer_text(&common::render(40, 1, |f| {
-        bar.render(f, Rect::new(0, 0, 30, 1), 4242)
+        bar.set_selected_pid(4242);
+        f.render_widget(&mut bar, Rect::new(0, 0, 30, 1))
     }));
     assert_eq!(none.trim_end(), some.trim_end());
 }
 
 #[test]
+fn selection_updates_the_available_command_styles_on_each_render() {
+    let mut bar = ProcessTaskBar::new();
+    for selected_pid in [0, 4242, 0] {
+        bar.set_selected_pid(selected_pid);
+        let buffer = common::render(30, 1, |frame| {
+            frame.render_widget(&mut bar, frame.area());
+        });
+        let (select_color, action_color) = if selected_pid == 0 {
+            (Color::LightRed, Color::DarkGray)
+        } else {
+            (Color::DarkGray, Color::LightRed)
+        };
+        assert_eq!(buffer.cell((0, 0)).unwrap().fg, select_color);
+        assert_eq!(buffer.cell((7, 0)).unwrap().fg, action_color);
+        assert_eq!(buffer.cell((12, 0)).unwrap().fg, action_color);
+    }
+}
+
+#[test]
+fn rendering_at_a_new_location_replaces_the_click_target() {
+    let mut bar = rendered(Rect::new(0, 0, 20, 1), 0);
+    let _ = common::render(40, 4, |frame| {
+        frame.render_widget(&mut bar, Rect::new(10, 2, 20, 1));
+    });
+    assert_eq!(bar.handle_click(left_click(1, 0)), None);
+    assert_eq!(
+        bar.handle_click(left_click(17, 2)),
+        Some(ProcessCommands::Kill)
+    );
+}
+
+#[test]
 fn rendering_into_a_narrow_area_does_not_panic() {
     let mut bar = ProcessTaskBar::new();
-    let _ = common::render(4, 1, |f| bar.render(f, Rect::new(0, 0, 4, 1), 0));
+    let _ = common::render(4, 1, |f| f.render_widget(&mut bar, Rect::new(0, 0, 4, 1)));
 }
 
 // ----------------------------------------------------------------- dispatch
