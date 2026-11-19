@@ -34,6 +34,3 @@ lm-sensors = "0.5.1"
 
 [features]
 dhat-heap = ["dep:dhat"]
-
-[profile.release]
-debug = 1         
